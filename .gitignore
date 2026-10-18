@@ -1,0 +1,37 @@
+# Zależności i pliki generowane
+node_modules/
+.expo/
+dist/
+web-build/
+coverage/
+*.tsbuildinfo
+
+# Lokalna konfiguracja i sekrety
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.p8
+*.key
+*.keystore
+*.jks
+credentials.json
+
+# Dane robocze i eksporty z urządzenia
+data/
+library/
+downloads/
+incomplete/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.db
+*.db-shm
+*.db-wal
+
+# Logi, pliki edytorów i systemu
+*.log
+*.kate-swp
+.DS_Store
+Thumbs.db
