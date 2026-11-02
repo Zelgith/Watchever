@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Attribution } from '../components/Attribution';
+import { AppHeader } from '../components/AppHeader';
 import { getRecommendations } from '../lib/recommendations';
 import type { MovieDetails } from '../lib/tmdb';
 import { theme } from '../theme';
@@ -60,7 +60,7 @@ export default function RecommendationScreen() {
         contentContainerStyle={styles.content}
         ListHeaderComponent={(
           <View style={styles.heading}>
-            <Text style={styles.brand}>Watchever</Text>
+            <AppHeader />
             <Text accessibilityRole="header" style={styles.title}>Pasujące filmy</Text>
           </View>
         )}
@@ -87,7 +87,6 @@ export default function RecommendationScreen() {
             )}
           </View>
         )}
-        ListFooterComponent={<Attribution />}
       />
     </SafeAreaView>
   );
@@ -103,12 +102,6 @@ const styles = StyleSheet.create({
     padding: theme.space.xl,
   },
   heading: { gap: theme.space.xxl, paddingBottom: theme.space.lg },
-  brand: {
-    fontFamily: theme.fonts.body,
-    fontSize: theme.text.section,
-    fontWeight: '700',
-    color: theme.colors.ink,
-  },
   empty: { paddingVertical: theme.space.xxl },
   title: {
     fontFamily: theme.fonts.body,

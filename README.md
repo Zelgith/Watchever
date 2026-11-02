@@ -6,7 +6,7 @@ Aplikacja korzysta z bazy danych **TMDB API** (bazy danych zawierającej szczeg�
 
 Użytkownik po uruchomieniu aplikacji ustala preferencje dotyczące rekomendacji, np. rok produkcji, czas trwania, gatunek itp. Ustala również platformy streamingowe, do których ma dostęp, aby generowane były jedynie filmy na nich dostępne.
 
-Następnie użytkownikowi wyświetlana jest rekomendacja wraz z najważniejszymi informacjami o filmie. Użytkownik może zdecydować o wygenerowaniu kolejnej, innej propozycji filmu.
+Następnie użytkownikowi wyświetlana jest lista rekomendowanych filmów. Każda propozycja spełnia wybrane preferencje i jest dostępna w abonamencie na co najmniej jednej wskazanej platformie w Polsce.
 
 ### Funkcjonalności opcjonalne
 
@@ -17,7 +17,7 @@ Aplikacja może otrzymać możliwość importu plików `.csv` z danymi na temat 
 1. Aplikacja pobiera dane na temat filmów z **TMDB API**.
 2. Aplikacja umożliwia użytkownikowi wybór preferowanych platform streamingowych.
 3. Aplikacja umożliwia użytkownikowi ustawienie filtrów wyszukiwanych filmów.
-4. Aplikacja rekomenduje film zgodny z preferencjami użytkownika.
+4. Aplikacja rekomenduje filmy zgodne z preferencjami użytkownika.
 5. Aplikacja wyświetla podstawowe dane na temat wybranego filmu.
 6. Aplikacja umożliwia odrzucenie rekomendacji i wygenerowanie kolejnej.
 7. **(Opcjonalnie)** Aplikacja umożliwia import plików `.csv` z danymi użytkownika na temat obejrzanych filmów oraz ocen.
@@ -85,3 +85,5 @@ Gatunki są opcjonalne. „Dowolne” usuwa ograniczenie gatunkowe. Przy kilku z
 Po wybraniu platformy naciśnij „Znajdź filmy”. Wynik pokazuje listę tytułów z pierwszej strony wyników TMDB, do 20 propozycji, w kolejności popularności. Przed wyświetleniem każdego filmu aplikacja potwierdza abonament (`flatrate`) w Polsce na przynajmniej jednej wybranej platformie i dopasowanie gatunków. Zakup, wypożyczenie i dostępność wyłącznie w innych krajach nie spełniają tego warunku. Gdy TMDB nie potwierdza dostępności filmu, nie pojawia się on na liście.
 
 Logo TMDB pochodzi z [oficjalnych materiałów TMDB](https://www.themoviedb.org/about/logos-attribution). Dane o dostępności filmów dostarcza JustWatch za pośrednictwem TMDB.
+
+Informacje o źródłach znajdują się na osobnym ekranie „O aplikacji”, dostępnym z nagłówka. Ekrany wyboru i wyników nie zawierają stopki.

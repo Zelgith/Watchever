@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Attribution } from '../components/Attribution';
+import { AppHeader } from '../components/AppHeader';
 import { Choice } from '../components/Choice';
 import { getGenres, getWatchProviders } from '../lib/tmdb';
 import type { Genre, WatchProvider } from '../lib/tmdb';
@@ -53,7 +53,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.brand}>Watchever</Text>
+        <AppHeader />
         <View style={styles.heading}>
           <Text style={styles.title} accessibilityRole="header">Co dziś obejrzysz?</Text>
           <Text style={styles.description}>Znajdź film na swoich platformach.</Text>
@@ -134,7 +134,6 @@ export default function HomeScreen() {
             <ActivityIndicator color={theme.colors.accent} accessibilityLabel="Pobieranie gatunków" />
           )}
         </View>
-        <Attribution />
       </ScrollView>
       <View style={styles.actions}>
         <Pressable
@@ -170,12 +169,6 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: theme.contentWidth,
     alignSelf: 'center',
-  },
-  brand: {
-    fontFamily: theme.fonts.body,
-    color: theme.colors.ink,
-    fontSize: theme.text.section,
-    fontWeight: '700',
   },
   heading: { gap: theme.space.sm },
   title: {
