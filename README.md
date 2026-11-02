@@ -40,7 +40,17 @@ Aplikacja może otrzymać możliwość importu plików `.csv` z danymi na temat 
 
 ## Uruchomienie
 
-Projekt wymaga Node.js LTS i npm. Korzysta z Expo SDK 58.
+Projekt wymaga Node.js 24 lub 26 LTS i npm. Korzysta z Expo SDK 58.
+
+Przed pierwszym uruchomieniem skopiuj `.env.example` do `.env.local` i wpisz token **API Read Access Token** z [ustawień API TMDB](https://www.themoviedb.org/settings/api):
+
+```sh
+cp .env.example .env.local
+```
+
+Ustaw zmienną `EXPO_PUBLIC_TMDB_READ_ACCESS_TOKEN`. Plik `.env.local` jest wykluczony z Gita. Zmienne `EXPO_PUBLIC_*` trafiają do kodu uruchamianego na urządzeniu; token odczytu można odczytać z aplikacji. Nie używaj tu haseł ani tokenów kont użytkowników.
+
+Po zmianie tokenu uruchom ponownie serwer Expo.
 
 ```sh
 npm ci
@@ -62,3 +72,7 @@ Kontrola typów:
 ```sh
 npm run typecheck
 ```
+
+## Dane TMDB
+
+Platformy są pobierane dla regionu `PL`, a nazwy gatunków i dane filmów w języku `pl-PL`. Aplikacja łączy się bezpośrednio z TMDB przez HTTPS i uwierzytelnia zapytania nagłówkiem Bearer.
