@@ -1,22 +1,151 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Attribution } from '../components/Attribution';
+import { Choice } from '../components/Choice';
+import { getWatchProviders } from '../lib/tmdb';
+import type { WatchProvider } from '../lib/tmdb';
+import { theme } from '../theme';
+
 export default function HomeScreen() {
+  const [providers, setProviders] = useState<WatchProvider[] | null>(null);
+  const [selectedProviders, setSelectedProviders] = useState<number[]>([]);
+  const [expanded, setExpanded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [disclosureFocused, setDisclosureFocused] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    getWatchProviders(controller.signal)
+      .then(setProviders)
+      .catch(() => {
+        if (!controller.signal.aborted) setLoadError(true);
+      });
+    return () => controller.abort();
+  }, []);
+
+  function toggleProvider(id: number) {
+    setSelectedProviders((selected) =>
+      selected.includes(id) ? selected.filter((current) => current !== id) : [...selected, id],
+    );
+  }
+
   return (
     <SafeAreaView style={styles.screen}>
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.brand}>Watchever</Text>
-        <Text style={styles.title}>Co dziś obejrzysz?</Text>
-        <Text style={styles.description}>Znajdź film na swoich platformach.</Text>
-      </View>
+        <View style={styles.heading}>
+          <Text style={styles.title} accessibilityRole="header">Co dziś obejrzysz?</Text>
+          <Text style={styles.description}>Znajdź film na swoich platformach.</Text>
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeading}>
+            <Text style={styles.sectionTitle} accessibilityRole="header">Twoje platformy</Text>
+            <Text style={styles.description}>Wybierz co najmniej jedną.</Text>
+          </View>
+          {providers ? (
+            <>
+              <View style={styles.options}>
+                {(expanded ? providers : providers.slice(0, 6)).map((provider) => (
+                  <Choice
+                    key={provider.provider_id}
+                    label={provider.provider_name}
+                    imagePath={provider.logo_path}
+                    selected={selectedProviders.includes(provider.provider_id)}
+                    onPress={() => toggleProvider(provider.provider_id)}
+                    style={styles.provider}
+                  />
+                ))}
+              </View>
+              {providers.length > 6 ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded }}
+                  onPress={() => setExpanded((current) => !current)}
+                  onFocus={() => setDisclosureFocused(true)}
+                  onBlur={() => setDisclosureFocused(false)}
+                  style={({ pressed }) => [
+                    styles.disclosure,
+                    pressed && styles.pressed,
+                    disclosureFocused && styles.focused,
+                  ]}
+                >
+                  <Text style={styles.disclosureText}>
+                    {expanded ? 'Zwiń listę platform' : `Wszystkie platformy (${providers.length})`}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </>
+          ) : loadError ? (
+            <Text style={styles.description} accessibilityRole="alert">
+              Nie udało się pobrać platform.
+            </Text>
+          ) : (
+            <ActivityIndicator color={theme.colors.accent} accessibilityLabel="Pobieranie platform" />
+          )}
+        </View>
+        <Attribution />
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F5F7FB' },
-  content: { flex: 1, padding: 24, justifyContent: 'center' },
-  brand: { color: '#315DEB', fontSize: 22, fontWeight: '700', marginBottom: 28 },
-  title: { color: '#17243B', fontSize: 34, fontWeight: '700', marginBottom: 12 },
-  description: { color: '#53637A', fontSize: 17, lineHeight: 25 },
+  screen: { flex: 1, backgroundColor: theme.colors.paper },
+  content: {
+    padding: theme.space.xl,
+    gap: theme.space.xxl,
+    width: '100%',
+    maxWidth: theme.contentWidth,
+    alignSelf: 'center',
+  },
+  brand: {
+    fontFamily: theme.fonts.body,
+    color: theme.colors.ink,
+    fontSize: theme.text.section,
+    fontWeight: '700',
+  },
+  heading: { gap: theme.space.sm },
+  title: {
+    fontFamily: theme.fonts.body,
+    color: theme.colors.ink,
+    fontSize: theme.text.heading,
+    lineHeight: 34,
+    fontWeight: '700',
+    flexShrink: 1,
+  },
+  description: {
+    fontFamily: theme.fonts.body,
+    color: theme.colors.muted,
+    fontSize: theme.text.body,
+    lineHeight: 24,
+  },
+  section: { gap: theme.space.lg },
+  sectionHeading: { gap: theme.space.xs },
+  sectionTitle: {
+    fontFamily: theme.fonts.body,
+    color: theme.colors.ink,
+    fontSize: theme.text.section,
+    fontWeight: '700',
+  },
+  options: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.space.sm },
+  provider: { width: '48.5%', minHeight: 76 },
+  disclosure: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: theme.radius,
+    paddingHorizontal: theme.space.md,
+    paddingVertical: theme.space.sm,
+  },
+  disclosureText: {
+    fontFamily: theme.fonts.body,
+    fontSize: theme.text.body,
+    color: theme.colors.secondaryInk,
+    textDecorationLine: 'underline',
+  },
+  pressed: { backgroundColor: theme.colors.selection },
+  focused: { outlineColor: theme.colors.focus, outlineWidth: 2, outlineOffset: 2 },
 });

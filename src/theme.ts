@@ -1,0 +1,21 @@
+export const theme = {
+  colors: {
+    paper: '#F8F4F1',
+    surface: '#FDFBF8',
+    subtle: '#F1ECE8',
+    selection: '#E8E1DD',
+    ink: '#1D1614',
+    secondaryInk: '#312926',
+    muted: '#615955',
+    rule: '#D9D3CF',
+    accent: '#BB3D31',
+    focus: '#BD3A2B',
+    button: '#1F1917',
+    buttonInk: '#F6F3EF',
+  },
+  fonts: { body: 'sans-serif' },
+  text: { caption: 13.333, body: 16, section: 19.2, heading: 27.648, title: 33.178 },
+  space: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 },
+  radius: 8,
+  contentWidth: 560,
+} as const;

@@ -76,3 +76,7 @@ npm run typecheck
 ## Dane TMDB
 
 Platformy są pobierane dla regionu `PL`, a nazwy gatunków i dane filmów w języku `pl-PL`. Aplikacja łączy się bezpośrednio z TMDB przez HTTPS i uwierzytelnia zapytania nagłówkiem Bearer.
+
+Na ekranie wyboru można zaznaczyć kilka platform. Przycisk „Wszystkie platformy” rozwija pełną listę TMDB dla Polski.
+
+Logo TMDB pochodzi z [oficjalnych materiałów TMDB](https://www.themoviedb.org/about/logos-attribution). Dane o dostępności filmów dostarcza JustWatch za pośrednictwem TMDB.
