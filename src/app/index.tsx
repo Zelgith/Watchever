@@ -4,15 +4,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Attribution } from '../components/Attribution';
 import { Choice } from '../components/Choice';
-import { getWatchProviders } from '../lib/tmdb';
-import type { WatchProvider } from '../lib/tmdb';
+import { getGenres, getWatchProviders } from '../lib/tmdb';
+import type { Genre, WatchProvider } from '../lib/tmdb';
 import { theme } from '../theme';
 
 export default function HomeScreen() {
   const [providers, setProviders] = useState<WatchProvider[] | null>(null);
   const [selectedProviders, setSelectedProviders] = useState<number[]>([]);
+  const [genres, setGenres] = useState<Genre[] | null>(null);
+  const [selectedGenres, setSelectedGenres] = useState<number[]>([]);
   const [expanded, setExpanded] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [genreError, setGenreError] = useState(false);
   const [disclosureFocused, setDisclosureFocused] = useState(false);
 
   useEffect(() => {
@@ -22,11 +25,22 @@ export default function HomeScreen() {
       .catch(() => {
         if (!controller.signal.aborted) setLoadError(true);
       });
+    getGenres(controller.signal)
+      .then(setGenres)
+      .catch(() => {
+        if (!controller.signal.aborted) setGenreError(true);
+      });
     return () => controller.abort();
   }, []);
 
   function toggleProvider(id: number) {
     setSelectedProviders((selected) =>
+      selected.includes(id) ? selected.filter((current) => current !== id) : [...selected, id],
+    );
+  }
+
+  function toggleGenre(id: number) {
+    setSelectedGenres((selected) =>
       selected.includes(id) ? selected.filter((current) => current !== id) : [...selected, id],
     );
   }
@@ -84,6 +98,35 @@ export default function HomeScreen() {
             </Text>
           ) : (
             <ActivityIndicator color={theme.colors.accent} accessibilityLabel="Pobieranie platform" />
+          )}
+        </View>
+        <View style={styles.section}>
+          <View style={styles.sectionHeading}>
+            <Text style={styles.sectionTitle} accessibilityRole="header">Gatunki</Text>
+            <Text style={styles.description}>Film pasuje do co najmniej jednego z wybranych.</Text>
+          </View>
+          {genres ? (
+            <View style={styles.options}>
+              <Choice
+                label="Dowolne"
+                selected={selectedGenres.length === 0}
+                onPress={() => setSelectedGenres([])}
+              />
+              {genres.map((genre) => (
+                <Choice
+                  key={genre.id}
+                  label={genre.name}
+                  selected={selectedGenres.includes(genre.id)}
+                  onPress={() => toggleGenre(genre.id)}
+                />
+              ))}
+            </View>
+          ) : genreError ? (
+            <Text style={styles.description} accessibilityRole="alert">
+              Nie udało się pobrać gatunków.
+            </Text>
+          ) : (
+            <ActivityIndicator color={theme.colors.accent} accessibilityLabel="Pobieranie gatunków" />
           )}
         </View>
         <Attribution />

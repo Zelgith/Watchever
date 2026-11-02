@@ -79,4 +79,6 @@ Platformy są pobierane dla regionu `PL`, a nazwy gatunków i dane filmów w ję
 
 Na ekranie wyboru można zaznaczyć kilka platform. Przycisk „Wszystkie platformy” rozwija pełną listę TMDB dla Polski.
 
+Gatunki są opcjonalne. „Dowolne” usuwa ograniczenie gatunkowe. Przy kilku zaznaczonych gatunkach wystarcza dopasowanie do jednego z nich.
+
 Logo TMDB pochodzi z [oficjalnych materiałów TMDB](https://www.themoviedb.org/about/logos-attribution). Dane o dostępności filmów dostarcza JustWatch za pośrednictwem TMDB.
