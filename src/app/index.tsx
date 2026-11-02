@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,6 +10,7 @@ import type { Genre, WatchProvider } from '../lib/tmdb';
 import { theme } from '../theme';
 
 export default function HomeScreen() {
+  const router = useRouter();
   const [providers, setProviders] = useState<WatchProvider[] | null>(null);
   const [selectedProviders, setSelectedProviders] = useState<number[]>([]);
   const [genres, setGenres] = useState<Genre[] | null>(null);
@@ -17,6 +19,9 @@ export default function HomeScreen() {
   const [loadError, setLoadError] = useState(false);
   const [genreError, setGenreError] = useState(false);
   const [disclosureFocused, setDisclosureFocused] = useState(false);
+  const [submitFocused, setSubmitFocused] = useState(false);
+
+  const canRecommend = selectedProviders.length > 0 && providers !== null && genres !== null;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -131,6 +136,28 @@ export default function HomeScreen() {
         </View>
         <Attribution />
       </ScrollView>
+      <View style={styles.actions}>
+        <Pressable
+          testID="find-movie"
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !canRecommend }}
+          disabled={!canRecommend}
+          onPress={() => router.push({
+            pathname: '/recommendation',
+            params: { providers: selectedProviders.join(','), genres: selectedGenres.join(',') },
+          })}
+          onFocus={() => setSubmitFocused(true)}
+          onBlur={() => setSubmitFocused(false)}
+          style={({ pressed }) => [
+            styles.submit,
+            !canRecommend && styles.disabled,
+            pressed && styles.submitPressed,
+            submitFocused && styles.focused,
+          ]}
+        >
+          <Text style={styles.submitText}>Znajdź film</Text>
+        </Pressable>
+      </View>
     </SafeAreaView>
   );
 }
@@ -191,4 +218,29 @@ const styles = StyleSheet.create({
   },
   pressed: { backgroundColor: theme.colors.selection },
   focused: { outlineColor: theme.colors.focus, outlineWidth: 2, outlineOffset: 2 },
+  actions: {
+    paddingHorizontal: theme.space.xl,
+    paddingVertical: theme.space.md,
+    width: '100%',
+    maxWidth: theme.contentWidth,
+    alignSelf: 'center',
+  },
+  submit: {
+    minHeight: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: theme.space.lg,
+    paddingVertical: theme.space.md,
+    backgroundColor: theme.colors.button,
+    borderRadius: theme.radius,
+  },
+  submitText: {
+    fontFamily: theme.fonts.body,
+    fontSize: theme.text.body,
+    fontWeight: '700',
+    lineHeight: 24,
+    color: theme.colors.buttonInk,
+  },
+  submitPressed: { backgroundColor: theme.colors.secondaryInk },
+  disabled: { opacity: 0.45 },
 });

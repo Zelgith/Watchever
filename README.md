@@ -67,10 +67,11 @@ npm run android
 
 Android SDK musi być dostępny przez `ANDROID_HOME`, a `adb` przez `PATH`.
 
-Kontrola typów:
+Kontrola typów i reguł rekomendacji:
 
 ```sh
 npm run typecheck
+npm test
 ```
 
 ## Dane TMDB
@@ -80,5 +81,7 @@ Platformy są pobierane dla regionu `PL`, a nazwy gatunków i dane filmów w ję
 Na ekranie wyboru można zaznaczyć kilka platform. Przycisk „Wszystkie platformy” rozwija pełną listę TMDB dla Polski.
 
 Gatunki są opcjonalne. „Dowolne” usuwa ograniczenie gatunkowe. Przy kilku zaznaczonych gatunkach wystarcza dopasowanie do jednego z nich.
+
+Po wybraniu platformy naciśnij „Znajdź film”. Wynik pokazuje tytuł pierwszego dopasowanego filmu z listy posortowanej według popularności TMDB. Przed wyświetleniem aplikacja potwierdza abonament (`flatrate`) w Polsce na przynajmniej jednej wybranej platformie i dopasowanie gatunków. Zakup, wypożyczenie i dostępność wyłącznie w innych krajach nie spełniają tego warunku. Gdy TMDB nie potwierdza dostępności kandydatów, aplikacja nie pokazuje ich jako rekomendacji.
 
 Logo TMDB pochodzi z [oficjalnych materiałów TMDB](https://www.themoviedb.org/about/logos-attribution). Dane o dostępności filmów dostarcza JustWatch za pośrednictwem TMDB.
