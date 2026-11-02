@@ -37,3 +37,28 @@ Aplikacja może otrzymać możliwość importu plików `.csv` z danymi na temat 
 - **Expo**
 - **Expo Router**
 - **Expo SQLite**
+
+## Uruchomienie
+
+Projekt wymaga Node.js LTS i npm. Korzysta z Expo SDK 58.
+
+```sh
+npm ci
+npm start
+```
+
+Na telefonie z Androidem otwórz projekt w [Expo Go dla SDK 58](https://expo.dev/go?sdkVersion=58&platform=android&device=true), skanując kod QR. Telefon i komputer powinny być w tej samej sieci.
+
+Jeśli korzystasz z emulatora, uruchom go wcześniej i wykonaj:
+
+```sh
+npm run android
+```
+
+Android SDK musi być dostępny przez `ANDROID_HOME`, a `adb` przez `PATH`.
+
+Kontrola typów:
+
+```sh
+npm run typecheck
+```

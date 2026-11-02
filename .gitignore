@@ -35,3 +35,6 @@ incomplete/
 *.kate-swp
 .DS_Store
 Thumbs.db
+
+# Typy generowane przez Expo
+expo-env.d.ts
