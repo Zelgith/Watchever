@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   options: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.space.sm },
-  provider: { width: '48.5%', minHeight: 76 },
+  provider: { width: '100%', minHeight: 56 },
   disclosure: {
     minHeight: 48,
     alignItems: 'center',
