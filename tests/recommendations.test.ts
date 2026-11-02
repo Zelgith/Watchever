@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import type { TestContext } from 'node:test';
 
-import { discoveryParameters, matchesPreferences } from '../src/lib/recommendations.ts';
+import { discoveryParameters, getRecommendations, matchesPreferences } from '../src/lib/recommendations.ts';
 import type { MovieDetails, WatchProvider } from '../src/lib/tmdb.ts';
 
 const netflix: WatchProvider = {
@@ -67,4 +68,44 @@ test('abonament za granicą nie spełnia warunku dostępności w Polsce', () => 
 test('brak informacji o dostępności nie jest potwierdzeniem abonamentu', () => {
   const unknownAvailability: MovieDetails = { ...movie, 'watch/providers': { results: {} } };
   assert.equal(matchesPreferences(unknownAvailability, { providerIds: [8], genreIds: [] }), false);
+});
+
+function mockMovies(context: TestContext, candidates: MovieDetails[]) {
+  const previousToken = process.env.EXPO_PUBLIC_TMDB_READ_ACCESS_TOKEN;
+  process.env.EXPO_PUBLIC_TMDB_READ_ACCESS_TOKEN = 'unit-test-token';
+  const byId = new Map(candidates.map((candidate) => [candidate.id, candidate]));
+
+  context.after(() => {
+    if (previousToken === undefined) delete process.env.EXPO_PUBLIC_TMDB_READ_ACCESS_TOKEN;
+    else process.env.EXPO_PUBLIC_TMDB_READ_ACCESS_TOKEN = previousToken;
+  });
+  context.mock.method(globalThis, 'fetch', async (input: Parameters<typeof fetch>[0]) => {
+    const url = new URL(String(input));
+    if (url.pathname === '/3/discover/movie') {
+      return Response.json({ results: candidates.map(({ id }) => ({ id })) });
+    }
+    const id = Number(url.pathname.split('/')[3]);
+    const details = byId.get(id);
+    assert.ok(details, 'Nieoczekiwany identyfikator zapytania');
+    return Response.json(details);
+  });
+}
+
+test('zwraca wiele potwierdzonych filmów w kolejności wyników, bez duplikatów', async (context) => {
+  mockMovies(context, [
+    movie,
+    { ...movie, id: 2, title: 'Drugi film', genres: [{ id: 35, name: 'Komedia' }] },
+    { ...movie, id: 3, 'watch/providers': { results: { PL: { buy: [netflix] } } } },
+    { ...movie, id: 4, genres: [{ id: 99, name: 'Dokumentalny' }] },
+    { ...movie, id: 5, title: 'Kolejny film' },
+    movie,
+  ]);
+
+  const recommendations = await getRecommendations({ providerIds: [8], genreIds: [28, 35] });
+  assert.deepEqual(recommendations.map(({ id }) => id), [1, 2, 5]);
+});
+
+test('brak wyników TMDB zwraca pustą listę filmów', async (context) => {
+  mockMovies(context, []);
+  assert.deepEqual(await getRecommendations({ providerIds: [8], genreIds: [] }), []);
 });

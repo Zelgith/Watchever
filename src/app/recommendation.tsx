@@ -1,10 +1,10 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Attribution } from '../components/Attribution';
-import { getFirstRecommendation } from '../lib/recommendations';
+import { getRecommendations } from '../lib/recommendations';
 import type { MovieDetails } from '../lib/tmdb';
 import { theme } from '../theme';
 
@@ -23,20 +23,23 @@ export default function RecommendationScreen() {
     providers?: string;
     genres?: string;
   }>();
-  const [movie, setMovie] = useState<MovieDetails | null>(null);
+  const [movies, setMovies] = useState<MovieDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
+    setLoading(true);
+    setFailed(false);
+    setMovies([]);
 
-    async function findMovie() {
+    async function findMovies() {
       try {
-        const recommendation = await getFirstRecommendation(
+        const recommendations = await getRecommendations(
           { providerIds: selectionIds(providers), genreIds: selectionIds(genres) },
           controller.signal,
         );
-        if (!controller.signal.aborted) setMovie(recommendation);
+        if (!controller.signal.aborted) setMovies(recommendations);
       } catch {
         if (!controller.signal.aborted) setFailed(true);
       } finally {
@@ -44,35 +47,48 @@ export default function RecommendationScreen() {
       }
     }
 
-    void findMovie();
+    void findMovies();
     return () => controller.abort();
   }, [providers, genres]);
 
   return (
     <SafeAreaView style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.brand}>Watchever</Text>
-        <View style={styles.result}>
-          {loading ? (
-            <ActivityIndicator color={theme.colors.accent} accessibilityLabel="Wyszukiwanie filmu" />
-          ) : failed ? (
-            <Text style={styles.message} accessibilityRole="alert">
-              Nie udało się pobrać propozycji filmu.
-            </Text>
-          ) : movie ? (
+      <FlatList
+        testID="recommendations-list"
+        data={movies}
+        keyExtractor={(movie) => String(movie.id)}
+        contentContainerStyle={styles.content}
+        ListHeaderComponent={(
+          <View style={styles.heading}>
+            <Text style={styles.brand}>Watchever</Text>
+            <Text accessibilityRole="header" style={styles.title}>Pasujące filmy</Text>
+          </View>
+        )}
+        renderItem={({ item }) => (
+          <View style={styles.movie}>
             <Text
-              testID="recommendation-title"
-              accessibilityRole="header"
-              style={styles.title}
+              testID={`movie-title-${item.id}`}
+              style={styles.movieTitle}
             >
-              {movie.title}
+              {item.title}
             </Text>
-          ) : (
-            <Text style={styles.message}>Brak filmu dla tego wyboru.</Text>
-          )}
-        </View>
-        <Attribution />
-      </ScrollView>
+          </View>
+        )}
+        ListEmptyComponent={(
+          <View style={styles.empty}>
+            {loading ? (
+              <ActivityIndicator color={theme.colors.accent} accessibilityLabel="Wyszukiwanie filmów" />
+            ) : failed ? (
+              <Text style={styles.message} accessibilityRole="alert">
+                Nie udało się pobrać propozycji filmów.
+              </Text>
+            ) : (
+              <Text style={styles.message}>Brak potwierdzonych propozycji dla tego wyboru.</Text>
+            )}
+          </View>
+        )}
+        ListFooterComponent={<Attribution />}
+      />
     </SafeAreaView>
   );
 }
@@ -85,22 +101,35 @@ const styles = StyleSheet.create({
     maxWidth: theme.contentWidth,
     alignSelf: 'center',
     padding: theme.space.xl,
-    gap: theme.space.xxl,
   },
+  heading: { gap: theme.space.xxl, paddingBottom: theme.space.lg },
   brand: {
     fontFamily: theme.fonts.body,
     fontSize: theme.text.section,
     fontWeight: '700',
     color: theme.colors.ink,
   },
-  result: { flex: 1, justifyContent: 'center', paddingVertical: theme.space.xxl },
+  empty: { paddingVertical: theme.space.xxl },
   title: {
     fontFamily: theme.fonts.body,
-    fontSize: theme.text.title,
+    fontSize: theme.text.heading,
     fontWeight: '700',
-    lineHeight: 41,
+    lineHeight: 34,
     color: theme.colors.ink,
     flexShrink: 1,
+  },
+  movie: {
+    minHeight: 64,
+    paddingVertical: theme.space.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.rule,
+    justifyContent: 'center',
+  },
+  movieTitle: {
+    fontFamily: theme.fonts.body,
+    fontSize: theme.text.section,
+    lineHeight: 27,
+    color: theme.colors.ink,
   },
   message: {
     fontFamily: theme.fonts.body,

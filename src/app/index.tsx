@@ -155,7 +155,7 @@ export default function HomeScreen() {
             submitFocused && styles.focused,
           ]}
         >
-          <Text style={styles.submitText}>Znajdź film</Text>
+          <Text style={styles.submitText}>Znajdź filmy</Text>
         </Pressable>
       </View>
     </SafeAreaView>

@@ -38,22 +38,25 @@ export function matchesPreferences(movie: MovieDetails, preferences: MoviePrefer
   return hasSubscription && hasGenre;
 }
 
-export async function getFirstRecommendation(
+export async function getRecommendations(
   preferences: MoviePreferences,
   signal?: AbortSignal,
-): Promise<MovieDetails | null> {
+): Promise<MovieDetails[]> {
   const response = await requestTmdb<{ results: { id: number }[] }>(
     '/discover/movie',
     discoveryParameters(preferences),
     signal,
   );
 
-  if (response.results.length === 0) return null;
+  const candidateIds = [...new Set(response.results.map((candidate) => candidate.id))].slice(0, 20);
+  const movies: MovieDetails[] = [];
 
-  for (const candidate of response.results) {
-    const movie = await getMovieDetails(candidate.id, signal);
-    if (matchesPreferences(movie, preferences)) return movie;
+  for (let index = 0; index < candidateIds.length; index += 4) {
+    const candidates = await Promise.all(
+      candidateIds.slice(index, index + 4).map((id) => getMovieDetails(id, signal)),
+    );
+    movies.push(...candidates.filter((movie) => matchesPreferences(movie, preferences)));
   }
 
-  throw new Error('Nie udało się potwierdzić dostępności filmu.');
+  return movies;
 }
