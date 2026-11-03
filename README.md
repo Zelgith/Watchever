@@ -84,6 +84,6 @@ Gatunki są opcjonalne. „Dowolne” usuwa ograniczenie gatunkowe. Przy kilku z
 
 Po wybraniu platformy naciśnij „Znajdź filmy”. Wynik pokazuje listę tytułów z pierwszej strony wyników TMDB, do 20 propozycji, w kolejności popularności. Nagłówek podaje liczbę znalezionych filmów. Przed wyświetleniem każdego filmu aplikacja potwierdza abonament (`flatrate`) w Polsce na przynajmniej jednej wybranej platformie i dopasowanie gatunków. Zakup, wypożyczenie i dostępność wyłącznie w innych krajach nie spełniają tego warunku. Gdy TMDB nie potwierdza dostępności filmu, nie pojawia się on na liście.
 
-Logo TMDB pochodzi z [oficjalnych materiałów TMDB](https://www.themoviedb.org/about/logos-attribution). Dane o dostępności filmów dostarcza JustWatch za pośrednictwem TMDB.
+Dane o dostępności filmów dostarcza JustWatch za pośrednictwem TMDB.
 
 Informacje o źródłach znajdują się na osobnym ekranie „O aplikacji”, dostępnym z nagłówka. Ekrany wyboru i wyników nie zawierają stopki.
