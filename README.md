@@ -78,7 +78,7 @@ npm test
 
 Platformy są pobierane dla regionu `PL`, a nazwy gatunków i dane filmów w języku `pl-PL`. Aplikacja łączy się bezpośrednio z TMDB przez HTTPS i uwierzytelnia zapytania nagłówkiem Bearer.
 
-Na ekranie wyboru można zaznaczyć kilka platform. Przycisk „Wszystkie platformy” rozwija pełną listę TMDB dla Polski.
+Na ekranie wyboru można zaznaczyć kilka platform. Przycisk „Wszystkie platformy” rozwija pełną listę TMDB dla Polski i wyszukiwanie po nazwie. Wyszukiwanie nie zmienia zaznaczeń. Po zwinięciu listy widoczne pozostają popularne platformy oraz wszystkie wybrane.
 
 Gatunki są opcjonalne. „Dowolne” usuwa ograniczenie gatunkowe. Przy kilku zaznaczonych gatunkach wystarcza dopasowanie do jednego z nich.
 

@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '../components/AppHeader';
@@ -16,12 +16,20 @@ export default function HomeScreen() {
   const [genres, setGenres] = useState<Genre[] | null>(null);
   const [selectedGenres, setSelectedGenres] = useState<number[]>([]);
   const [expanded, setExpanded] = useState(false);
+  const [providerQuery, setProviderQuery] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [genreError, setGenreError] = useState(false);
   const [disclosureFocused, setDisclosureFocused] = useState(false);
   const [submitFocused, setSubmitFocused] = useState(false);
 
   const canRecommend = selectedProviders.length > 0 && providers !== null && genres !== null;
+  const normalizedQuery = providerQuery.trim().toLocaleLowerCase('pl');
+  const visibleProviders = providers?.filter((provider, index) =>
+    expanded
+      ? provider.provider_name.toLocaleLowerCase('pl').includes(normalizedQuery)
+      : index < 6 || selectedProviders.includes(provider.provider_id),
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -52,11 +60,15 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         <AppHeader />
         <View style={styles.heading}>
           <Text style={styles.title} accessibilityRole="header">Co dziś obejrzysz?</Text>
-          <Text style={styles.description}>Znajdź film na swoich platformach.</Text>
+          <Text style={styles.description}>Filmy w Twoich abonamentach w Polsce.</Text>
         </View>
 
         <View style={styles.section}>
@@ -66,23 +78,15 @@ export default function HomeScreen() {
           </View>
           {providers ? (
             <>
-              <View style={styles.options}>
-                {(expanded ? providers : providers.slice(0, 6)).map((provider) => (
-                  <Choice
-                    key={provider.provider_id}
-                    label={provider.provider_name}
-                    imagePath={provider.logo_path}
-                    selected={selectedProviders.includes(provider.provider_id)}
-                    onPress={() => toggleProvider(provider.provider_id)}
-                    style={styles.provider}
-                  />
-                ))}
-              </View>
               {providers.length > 6 ? (
                 <Pressable
+                  testID="toggle-providers"
                   accessibilityRole="button"
                   accessibilityState={{ expanded }}
-                  onPress={() => setExpanded((current) => !current)}
+                  onPress={() => {
+                    setExpanded((current) => !current);
+                    setProviderQuery('');
+                  }}
                   onFocus={() => setDisclosureFocused(true)}
                   onBlur={() => setDisclosureFocused(false)}
                   style={({ pressed }) => [
@@ -95,6 +99,39 @@ export default function HomeScreen() {
                     {expanded ? 'Zwiń listę platform' : `Wszystkie platformy (${providers.length})`}
                   </Text>
                 </Pressable>
+              ) : null}
+              {expanded ? (
+                <TextInput
+                  testID="provider-search"
+                  accessibilityLabel="Szukaj platformy"
+                  placeholder="Szukaj platformy"
+                  placeholderTextColor={theme.colors.muted}
+                  selectionColor={theme.colors.accent}
+                  value={providerQuery}
+                  onChangeText={setProviderQuery}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="done"
+                  onFocus={() => setSearchFocused(true)}
+                  onBlur={() => setSearchFocused(false)}
+                  style={[styles.search, searchFocused && styles.focused]}
+                />
+              ) : null}
+              <View style={styles.options}>
+                {visibleProviders?.map((provider) => (
+                  <Choice
+                    key={provider.provider_id}
+                    testID={`provider-${provider.provider_id}`}
+                    label={provider.provider_name}
+                    imagePath={provider.logo_path}
+                    selected={selectedProviders.includes(provider.provider_id)}
+                    onPress={() => toggleProvider(provider.provider_id)}
+                    style={styles.provider}
+                  />
+                ))}
+              </View>
+              {visibleProviders?.length === 0 ? (
+                <Text style={styles.description}>Brak platform o tej nazwie.</Text>
               ) : null}
             </>
           ) : loadError ? (
@@ -113,6 +150,7 @@ export default function HomeScreen() {
           {genres ? (
             <View style={styles.options}>
               <Choice
+                testID="genre-any"
                 label="Dowolne"
                 selected={selectedGenres.length === 0}
                 onPress={() => setSelectedGenres([])}
@@ -120,6 +158,7 @@ export default function HomeScreen() {
               {genres.map((genre) => (
                 <Choice
                   key={genre.id}
+                  testID={`genre-${genre.id}`}
                   label={genre.name}
                   selected={selectedGenres.includes(genre.id)}
                   onPress={() => toggleGenre(genre.id)}
@@ -195,6 +234,18 @@ const styles = StyleSheet.create({
   },
   options: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.space.sm },
   provider: { width: '100%', minHeight: 56 },
+  search: {
+    minHeight: 52,
+    borderWidth: 1,
+    borderColor: theme.colors.muted,
+    borderRadius: theme.radius,
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: theme.space.md,
+    paddingVertical: theme.space.md,
+    fontFamily: theme.fonts.body,
+    fontSize: theme.text.body,
+    color: theme.colors.ink,
+  },
   disclosure: {
     minHeight: 48,
     alignItems: 'center',
@@ -206,6 +257,8 @@ const styles = StyleSheet.create({
   disclosureText: {
     fontFamily: theme.fonts.body,
     fontSize: theme.text.body,
+    lineHeight: 24,
+    textAlign: 'center',
     color: theme.colors.secondaryInk,
     textDecorationLine: 'underline',
   },

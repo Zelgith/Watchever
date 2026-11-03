@@ -6,6 +6,7 @@ import type { StyleProp, ViewStyle } from 'react-native';
 import { theme } from '../theme';
 
 type ChoiceProps = {
+  testID?: string;
   label: string;
   selected: boolean;
   onPress: () => void;
@@ -13,11 +14,12 @@ type ChoiceProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-export function Choice({ label, selected, onPress, imagePath, style }: ChoiceProps) {
+export function Choice({ testID, label, selected, onPress, imagePath, style }: ChoiceProps) {
   const [focused, setFocused] = useState(false);
 
   return (
     <Pressable
+      testID={testID}
       accessibilityRole="checkbox"
       accessibilityLabel={label}
       accessibilityState={{ checked: selected }}
