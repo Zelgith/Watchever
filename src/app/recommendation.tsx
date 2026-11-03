@@ -61,7 +61,12 @@ export default function RecommendationScreen() {
         ListHeaderComponent={(
           <View style={styles.heading}>
             <AppHeader />
-            <Text accessibilityRole="header" style={styles.title}>Pasujące filmy</Text>
+            <View style={styles.titleGroup}>
+              <Text accessibilityRole="header" style={styles.title}>
+                Pasujące filmy{!loading && !failed ? ` (${movies.length})` : ''}
+              </Text>
+              <Text style={styles.message}>W Twoich abonamentach w Polsce.</Text>
+            </View>
           </View>
         )}
         renderItem={({ item }) => (
@@ -102,6 +107,7 @@ const styles = StyleSheet.create({
     padding: theme.space.xl,
   },
   heading: { gap: theme.space.xxl, paddingBottom: theme.space.lg },
+  titleGroup: { gap: theme.space.sm },
   empty: { paddingVertical: theme.space.xxl },
   title: {
     fontFamily: theme.fonts.body,
