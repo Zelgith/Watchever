@@ -40,39 +40,26 @@ Aplikacja może otrzymać możliwość importu plików `.csv` z danymi na temat 
 
 ## Uruchomienie
 
-Projekt wymaga Node.js 24 lub 26 LTS i npm. Korzysta z Expo SDK 58.
-
-Przed pierwszym uruchomieniem skopiuj `.env.example` do `.env.local` i wpisz token **API Read Access Token** z [ustawień API TMDB](https://www.themoviedb.org/settings/api):
-
-```sh
-cp .env.example .env.local
-```
-
-Ustaw zmienną `EXPO_PUBLIC_TMDB_READ_ACCESS_TOKEN`. Plik `.env.local` jest wykluczony z Gita. Zmienne `EXPO_PUBLIC_*` trafiają do kodu uruchamianego na urządzeniu; token odczytu można odczytać z aplikacji. Nie używaj tu haseł ani tokenów kont użytkowników.
-
-Po zmianie tokenu uruchom ponownie serwer Expo.
+Node.js 24 lub 26 LTS. Android: [Expo Go (SDK 58)](https://expo.dev/go?sdkVersion=58&platform=android&device=true) lub włączony emulator.
 
 ```sh
 npm ci
-npm start
+cp -n .env.example .env.local
 ```
 
-Na telefonie z Androidem otwórz projekt w [Expo Go dla SDK 58](https://expo.dev/go?sdkVersion=58&platform=android&device=true), skanując kod QR. Telefon i komputer powinny być w tej samej sieci.
+W `.env.local` wpisz **API Read Access Token** z [TMDB](https://www.themoviedb.org/settings/api):
 
-Jeśli korzystasz z emulatora, uruchom go wcześniej i wykonaj:
+```dotenv
+EXPO_PUBLIC_TMDB_READ_ACCESS_TOKEN=TWOJ_TOKEN
+```
 
 ```sh
-npm run android
+npm start        # telefon w tej samej sieci: QR w Expo Go
+# lub
+npm run android  # emulator
 ```
 
-Android SDK musi być dostępny przez `ANDROID_HOME`, a `adb` przez `PATH`.
-
-Kontrola typów i reguł rekomendacji:
-
-```sh
-npm run typecheck
-npm test
-```
+Kontrole: `npm run typecheck` i `npm test`.
 
 ## Dane TMDB
 
