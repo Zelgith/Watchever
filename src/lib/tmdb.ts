@@ -20,6 +20,10 @@ export type RegionalAvailability = {
 export type MovieDetails = {
   id: number;
   title: string;
+  poster_path: string | null;
+  release_date: string;
+  overview: string | null;
+  runtime: number;
   genres: Genre[];
   'watch/providers': {
     results: Record<string, RegionalAvailability>;
