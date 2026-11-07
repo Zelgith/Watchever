@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '../components/AppHeader';
@@ -25,9 +25,11 @@ export default function RecommendationScreen() {
     genres?: string;
   }>();
   const [movies, setMovies] = useState<MovieDetails[]>([]);
+  const [currentMovieIndex, setCurrentMovieIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const selectedProviderIds = selectionIds(providers);
+  const currentMovie = movies[currentMovieIndex];
 
   useEffect(() => {
     const controller = new AbortController();
@@ -41,7 +43,10 @@ export default function RecommendationScreen() {
           { providerIds: selectionIds(providers), genreIds: selectionIds(genres) },
           controller.signal,
         );
-        if (!controller.signal.aborted) setMovies(recommendations.slice(0, 1));
+        if (!controller.signal.aborted) {
+          setMovies(recommendations);
+          setCurrentMovieIndex(0);
+        }
       } catch {
         if (!controller.signal.aborted) setFailed(true);
       } finally {
@@ -57,7 +62,7 @@ export default function RecommendationScreen() {
     <SafeAreaView style={styles.screen}>
       <FlatList
         testID="recommendations-list"
-        data={movies}
+        data={currentMovie ? [currentMovie] : []}
         keyExtractor={(movie) => String(movie.id)}
         contentContainerStyle={styles.content}
         ListHeaderComponent={(
@@ -131,6 +136,18 @@ export default function RecommendationScreen() {
                   ))}
                 </View>
               )}
+              <Pressable
+                testID="next-movie-button"
+                accessibilityRole="button"
+                onPress={() =>
+                  setCurrentMovieIndex((index) => index + 1)
+                }
+                style={styles.nextButton}
+              >
+                <Text style={styles.nextButtonText}>
+                  Nie interesuje mnie
+                </Text>
+              </Pressable>
             </View>
           );
         }}
@@ -142,8 +159,14 @@ export default function RecommendationScreen() {
               <Text style={styles.message} accessibilityRole="alert">
                 Nie udało się pobrać propozycji filmów.
               </Text>
+            ) : movies.length > 0 && currentMovieIndex >= movies.length ? (
+              <Text style={styles.message}>
+                Nie mamy więcej rekomendacji
+              </Text>
             ) : (
-              <Text style={styles.message}>Brak potwierdzonych propozycji dla tego wyboru.</Text>
+              <Text style={styles.message}>
+                Brak potwierdzonych propozycji dla tego wyboru.
+              </Text>
             )}
           </View>
         )}
@@ -222,5 +245,19 @@ const styles = StyleSheet.create({
   provider: {
     width: '100%',
     minHeight: 56,
+  },
+  nextButton: {
+    marginTop: theme.space.lg,
+    paddingVertical: theme.space.md,
+    paddingHorizontal: theme.space.xl,
+    borderRadius: theme.radius,
+    backgroundColor: theme.colors.accent,
+    alignItems: 'center',
+  },
+  nextButtonText: {
+    fontFamily: theme.fonts.body,
+    fontSize: theme.text.body,
+    color: theme.colors.buttonInk,
+    fontWeight: '700',
   },
 });
