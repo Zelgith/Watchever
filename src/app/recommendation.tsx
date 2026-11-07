@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,6 +20,7 @@ function selectionIds(value: string | string[] | undefined): number[] {
 }
 
 export default function RecommendationScreen() {
+  const router = useRouter();
   const { providers, genres } = useLocalSearchParams<{
     providers?: string;
     genres?: string;
@@ -30,6 +31,10 @@ export default function RecommendationScreen() {
   const [failed, setFailed] = useState(false);
   const selectedProviderIds = selectionIds(providers);
   const currentMovie = movies[currentMovieIndex];
+  
+  function showNextMovie() {
+    setCurrentMovieIndex((index) => index + 1);
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -62,6 +67,7 @@ export default function RecommendationScreen() {
     <SafeAreaView style={styles.screen}>
       <FlatList
         testID="recommendations-list"
+        style={styles.list}
         data={currentMovie ? [currentMovie] : []}
         keyExtractor={(movie) => String(movie.id)}
         contentContainerStyle={styles.content}
@@ -136,18 +142,6 @@ export default function RecommendationScreen() {
                   ))}
                 </View>
               )}
-              <Pressable
-                testID="next-movie-button"
-                accessibilityRole="button"
-                onPress={() =>
-                  setCurrentMovieIndex((index) => index + 1)
-                }
-                style={styles.nextButton}
-              >
-                <Text style={styles.nextButtonText}>
-                  Nie interesuje mnie
-                </Text>
-              </Pressable>
             </View>
           );
         }}
@@ -171,6 +165,36 @@ export default function RecommendationScreen() {
           </View>
         )}
       />
+      {currentMovie && (
+        <View style={styles.actions}>
+          <Pressable
+            testID="change-filters-button"
+            accessibilityRole="button"
+            onPress={() => router.back()}
+            style={({ pressed }) => [
+              styles.submit,
+              pressed && styles.submitPressed,
+            ]}
+          >
+            <Text style={styles.submitText}>
+              Zmień filtry
+            </Text>
+          </Pressable>
+          <Pressable
+            testID="next-movie-button"
+            accessibilityRole="button"
+            onPress={showNextMovie}
+            style={({ pressed }) => [
+              styles.submit,
+              pressed && styles.submitPressed,
+            ]}
+          >
+            <Text style={styles.submitText}>
+              Nie interesuje mnie
+            </Text>
+          </Pressable>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -246,18 +270,35 @@ const styles = StyleSheet.create({
     width: '100%',
     minHeight: 56,
   },
-  nextButton: {
-    marginTop: theme.space.lg,
-    paddingVertical: theme.space.md,
-    paddingHorizontal: theme.space.xl,
-    borderRadius: theme.radius,
-    backgroundColor: theme.colors.accent,
+  submit: {
+    minHeight: 52,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: theme.space.lg,
+    paddingVertical: theme.space.md,
+    backgroundColor: theme.colors.button,
+    borderRadius: theme.radius,
   },
-  nextButtonText: {
+  submitText: {
     fontFamily: theme.fonts.body,
     fontSize: theme.text.body,
-    color: theme.colors.buttonInk,
     fontWeight: '700',
+    lineHeight: 24,
+    color: theme.colors.buttonInk,
+  },
+  submitPressed: {
+    backgroundColor: theme.colors.secondaryInk,
+  },list: {
+    flex: 1,
+  },
+  actions: {
+    paddingHorizontal: theme.space.xl,
+    paddingTop: theme.space.md,
+    paddingBottom: theme.space.lg,
+    width: '100%',
+    maxWidth: theme.contentWidth,
+    alignSelf: 'center',
+    backgroundColor: theme.colors.paper,
+    gap: theme.space.sm,
   },
 });
