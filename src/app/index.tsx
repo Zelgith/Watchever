@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '../components/AppHeader';
+import { ActionButton } from '../components/ActionButton';
 import { Choice } from '../components/Choice';
 import { getGenres, getWatchProviders } from '../lib/tmdb';
 import type { Genre, WatchProvider } from '../lib/tmdb';
@@ -22,6 +23,7 @@ export default function HomeScreen() {
   const [genreError, setGenreError] = useState(false);
   const [disclosureFocused, setDisclosureFocused] = useState(false);
   const [submitFocused, setSubmitFocused] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   const canRecommend = selectedProviders.length > 0 && providers !== null && genres !== null;
   const normalizedQuery = providerQuery.trim().toLocaleLowerCase('pl');
@@ -33,6 +35,8 @@ export default function HomeScreen() {
 
   useEffect(() => {
     const controller = new AbortController();
+    setLoadError(false);
+    setGenreError(false);
     getWatchProviders(controller.signal)
       .then(setProviders)
       .catch(() => {
@@ -44,7 +48,7 @@ export default function HomeScreen() {
         if (!controller.signal.aborted) setGenreError(true);
       });
     return () => controller.abort();
-  }, []);
+  }, [loadAttempt]);
 
   function toggleProvider(id: number) {
     setSelectedProviders((selected) =>
@@ -135,9 +139,10 @@ export default function HomeScreen() {
               ) : null}
             </>
           ) : loadError ? (
-            <Text style={styles.description} accessibilityRole="alert">
-              Nie udało się pobrać platform.
-            </Text>
+            <>
+              <Text style={styles.description} accessibilityRole="alert">Nie udało się pobrać platform.</Text>
+              <ActionButton testID="retry-providers" label="Spróbuj ponownie" onPress={() => setLoadAttempt((current) => current + 1)} secondary />
+            </>
           ) : (
             <ActivityIndicator color={theme.colors.accent} accessibilityLabel="Pobieranie platform" />
           )}
@@ -166,9 +171,10 @@ export default function HomeScreen() {
               ))}
             </View>
           ) : genreError ? (
-            <Text style={styles.description} accessibilityRole="alert">
-              Nie udało się pobrać gatunków.
-            </Text>
+            <>
+              <Text style={styles.description} accessibilityRole="alert">Nie udało się pobrać gatunków.</Text>
+              <ActionButton testID="retry-genres" label="Spróbuj ponownie" onPress={() => setLoadAttempt((current) => current + 1)} secondary />
+            </>
           ) : (
             <ActivityIndicator color={theme.colors.accent} accessibilityLabel="Pobieranie gatunków" />
           )}

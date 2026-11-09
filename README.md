@@ -73,6 +73,8 @@ Po wybraniu platformy naciśnij „Znajdź filmy”. Wynik pokazuje do 20 filmó
 
 „Nie interesuje mnie” usuwa wskazany film z bieżącej serii, bez odrzucania pozostałych propozycji. Po wyczerpaniu listy można rozpocząć nowe wyszukiwanie. „Zmień filtry” wraca do dotychczasowego wyboru platform i gatunków; działa także podczas ładowania, po błędzie i przy braku wyników.
 
+Po błędzie pobierania platform, gatunków lub filmów można ponowić próbę. Pojedyncze zapytanie bez odpowiedzi jest przerywane po 20 sekundach.
+
 Dane o dostępności filmów dostarcza JustWatch za pośrednictwem TMDB.
 
 Informacje o źródłach znajdują się na osobnym ekranie „O aplikacji”, dostępnym z nagłówka. Ekrany wyboru i wyników nie zawierają stopki.

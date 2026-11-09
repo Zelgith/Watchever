@@ -49,19 +49,23 @@ export async function requestTmdb<T>(
     url.searchParams.set(name, value);
   }
 
-  const response = await fetch(url.toString(), {
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    signal,
-  });
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  if (signal?.aborted) abort();
+  signal?.addEventListener('abort', abort, { once: true });
+  const timeout = setTimeout(abort, 20_000);
 
-  if (!response.ok) {
-    throw new Error('Nie udało się pobrać danych z bazy filmów.');
+  try {
+    const response = await fetch(url.toString(), {
+      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error('Nie udało się pobrać danych z bazy filmów.');
+    return await response.json() as T;
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener('abort', abort);
   }
-
-  return response.json() as Promise<T>;
 }
 
 export async function getWatchProviders(signal?: AbortSignal): Promise<WatchProvider[]> {
