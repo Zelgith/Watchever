@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -11,6 +12,13 @@ export default function AboutScreen() {
         <Text style={styles.text}>Filmy dostępne w Twoich abonamentach w Polsce.</Text>
         <View style={styles.credits}>
           <Text style={styles.sectionTitle} accessibilityRole="header">Źródła danych</Text>
+          <Image
+            testID="tmdb-credit"
+            source={require('../../assets/tmdb.png')}
+            style={styles.sourceLogo}
+            contentFit="contain"
+            accessibilityLabel="TMDB"
+          />
           <Text style={styles.text}>Dostępność filmów: JustWatch.</Text>
           <Text style={styles.text}>
             This product uses the TMDB API but is not endorsed or certified by TMDB.
@@ -43,6 +51,7 @@ const styles = StyleSheet.create({
     color: theme.colors.ink,
   },
   credits: { gap: theme.space.lg, paddingVertical: theme.space.lg },
+  sourceLogo: { width: 100, height: 14 },
   text: {
     fontFamily: theme.fonts.body,
     fontSize: theme.text.body,

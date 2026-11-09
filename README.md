@@ -61,6 +61,8 @@ npm run android  # emulator
 
 Kontrole: `npm run typecheck` i `npm test`.
 
+APK testowy: `npm run apk` (JDK 17 i Android SDK). Wynik: `dist/Watchever.apk`; działa bez Expo Go i Metro.
+
 ## Dane TMDB
 
 Platformy są pobierane dla regionu `PL`, a nazwy gatunków i dane filmów w języku `pl-PL`. Aplikacja łączy się bezpośrednio z TMDB przez HTTPS i uwierzytelnia zapytania nagłówkiem Bearer.
@@ -69,7 +71,11 @@ Na ekranie wyboru można zaznaczyć kilka platform. Przycisk „Wszystkie platfo
 
 Gatunki są opcjonalne. „Dowolne” usuwa ograniczenie gatunkowe. Przy kilku zaznaczonych gatunkach wystarcza dopasowanie do jednego z nich.
 
-Po wybraniu platformy naciśnij „Znajdź filmy”. Wynik pokazuje listę tytułów z pierwszej strony wyników TMDB, do 20 propozycji, w kolejności popularności. Nagłówek podaje liczbę znalezionych filmów. Przed wyświetleniem każdego filmu aplikacja potwierdza abonament (`flatrate`) w Polsce na przynajmniej jednej wybranej platformie i dopasowanie gatunków. Zakup, wypożyczenie i dostępność wyłącznie w innych krajach nie spełniają tego warunku. Gdy TMDB nie potwierdza dostępności filmu, nie pojawia się on na liście.
+Po wybraniu platformy naciśnij „Znajdź filmy”. Wynik pokazuje do 20 filmów z pierwszej strony TMDB, w kolejności popularności. Każdy ma tytuł, plakat, rok, opis i pasujące platformy; brakujące dane są oznaczone. Nagłówek podaje liczbę filmów na liście. Przed wyświetleniem filmu aplikacja potwierdza abonament (`flatrate`) w Polsce na przynajmniej jednej wybranej platformie i dopasowanie gatunków. Zakup, wypożyczenie i dostępność wyłącznie w innych krajach nie spełniają tego warunku.
+
+„Nie interesuje mnie” usuwa wskazany film z bieżącej serii, bez odrzucania pozostałych propozycji. Po wyczerpaniu listy można rozpocząć nowe wyszukiwanie. „Zmień filtry” wraca do dotychczasowego wyboru platform i gatunków; działa także podczas ładowania, po błędzie i przy braku wyników.
+
+Po błędzie pobierania platform, gatunków lub filmów można ponowić próbę. Pojedyncze zapytanie bez odpowiedzi jest przerywane po 20 sekundach.
 
 Dane o dostępności filmów dostarcza JustWatch za pośrednictwem TMDB.
 

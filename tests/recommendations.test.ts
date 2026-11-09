@@ -15,6 +15,10 @@ const disney: WatchProvider = { ...netflix, provider_id: 337, provider_name: 'Di
 const movie: MovieDetails = {
   id: 1,
   title: 'Film testowy',
+  poster_path: null,
+  release_date: '',
+  overview: null,
+  runtime: null,
   genres: [{ id: 28, name: 'Akcja' }],
   'watch/providers': { results: { PL: { flatrate: [netflix], rent: [disney] } } },
 };
