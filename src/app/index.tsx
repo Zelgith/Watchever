@@ -63,6 +63,19 @@ export default function HomeScreen() {
     );
   }
 
+  const providerChoices = visibleProviders?.map((provider) => (
+    <Choice
+      key={provider.provider_id}
+      kind={expanded ? 'provider-row' : 'provider'}
+      testID={`provider-${provider.provider_id}`}
+      label={provider.provider_name}
+      imagePath={provider.logo_path}
+      selected={selectedProviders.includes(provider.provider_id)}
+      onPress={() => toggleProvider(provider.provider_id)}
+      style={expanded ? styles.providerRow : styles.providerItem}
+    />
+  ));
+
   return (
     <SafeAreaView style={styles.screen}>
       <ScrollView
@@ -120,21 +133,11 @@ export default function HomeScreen() {
                   />
                 </View>
               ) : null}
-              <ScrollView horizontal={!expanded} showsHorizontalScrollIndicator={false}
-                scrollEnabled={!expanded} contentContainerStyle={expanded ? styles.providerList : styles.providerRail}>
-                {visibleProviders?.map((provider) => (
-                  <Choice
-                    key={provider.provider_id}
-                    kind={expanded ? 'provider-row' : 'provider'}
-                    testID={`provider-${provider.provider_id}`}
-                    label={provider.provider_name}
-                    imagePath={provider.logo_path}
-                    selected={selectedProviders.includes(provider.provider_id)}
-                    onPress={() => toggleProvider(provider.provider_id)}
-                    style={expanded ? styles.providerRow : styles.providerItem}
-                  />
-                ))}
-              </ScrollView>
+              {expanded ? <View style={styles.providerList}>{providerChoices}</View> : (
+                <ScrollView testID="provider-rail" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.providerRail}>
+                  {providerChoices}
+                </ScrollView>
+              )}
               {visibleProviders?.length === 0 ? <Text style={styles.message}>Brak platform o tej nazwie.</Text> : null}
             </>
           ) : loadError ? (
@@ -200,7 +203,7 @@ const styles = StyleSheet.create({
   sectionTitle: { flexShrink: 1, fontFamily: theme.fonts.medium, fontSize: theme.text.section, lineHeight: 28, color: theme.colors.ink },
   providerRail: { gap: theme.space.sm, paddingVertical: theme.space.xs },
   providerList: { width: '100%' },
-  providerItem: { width: 80 },
+  providerItem: { width: 88 },
   providerRow: { width: '100%' },
   genres: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.space.sm },
   message: { fontFamily: theme.fonts.body, fontSize: theme.text.body, lineHeight: 24, color: theme.colors.secondaryInk },
@@ -211,7 +214,7 @@ const styles = StyleSheet.create({
   pressed: { backgroundColor: theme.colors.selection },
   focused: { outlineColor: theme.colors.focus, outlineWidth: 2, outlineOffset: 2 },
   actions: { paddingHorizontal: theme.space.xl, paddingTop: theme.space.md, paddingBottom: theme.space.lg, borderTopWidth: 1, borderTopColor: theme.colors.rule, width: '100%', maxWidth: theme.contentWidth, alignSelf: 'center' },
-  skeletonProvider: { width: 80, minHeight: 112, alignItems: 'center', justifyContent: 'center', gap: theme.space.md },
+  skeletonProvider: { width: 88, minHeight: 112, alignItems: 'center', justifyContent: 'center', gap: theme.space.md },
   skeletonLogo: { width: 56, height: 56, backgroundColor: theme.colors.surface },
   skeletonLabel: { width: '80%', height: 12, backgroundColor: theme.colors.rule },
   skeletonGenre: { width: 96, height: 48, backgroundColor: theme.colors.surface },

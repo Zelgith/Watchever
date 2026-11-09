@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -14,6 +14,7 @@ import { IconButton } from './IconButton';
 type Props = { movie: MovieDetails; providerIds: readonly number[]; onDismiss: () => void; style?: StyleProp<ViewStyle> };
 
 export function MovieCard({ movie, providerIds, onDismiss, style }: Props) {
+  const { fontScale } = useWindowDimensions();
   const [posterFailed, setPosterFailed] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -48,7 +49,7 @@ export function MovieCard({ movie, providerIds, onDismiss, style }: Props) {
           </View>
         )}
         <View style={styles.summary}>
-          <Text testID={`movie-title-${movie.id}`} numberOfLines={2} style={styles.title}>{movie.title}</Text>
+          <Text testID={`movie-title-${movie.id}`} numberOfLines={2} style={[styles.title, { minHeight: 48 * fontScale }]}>{movie.title}</Text>
           <View style={styles.metadata}>
             <Text testID={`movie-release-${movie.id}`} style={styles.caption}>{year ?? 'Rok nieznany'}</Text>
             {movie.runtime !== null && movie.runtime > 0 ? <Text style={styles.caption}>{movie.runtime} min</Text> : null}
@@ -91,10 +92,7 @@ export function MovieCard({ movie, providerIds, onDismiss, style }: Props) {
                 </View>
               </View>
               <Text testID={`movie-overview-${movie.id}`} style={styles.text}>{movie.overview?.trim() || 'Brak opisu.'}</Text>
-              <ActionButton testID={`dismiss-movie-${movie.id}`} label="Nie interesuje mnie" icon="close" secondary onPress={() => {
-                setDetailsOpen(false);
-                onDismiss();
-              }} />
+              <ActionButton testID={`dismiss-movie-${movie.id}`} label="Nie interesuje mnie" icon="close" secondary onPress={onDismiss} />
             </ScrollView>
           </SafeAreaView>
         </View>

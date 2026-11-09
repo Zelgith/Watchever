@@ -63,18 +63,18 @@ export function Choice({ testID, label, selected, onPress, imagePath, style, kin
 
 const styles = StyleSheet.create({
   choice: {
-    minHeight: 48,
+    minHeight: 44,
     paddingHorizontal: theme.space.md,
     paddingVertical: theme.space.sm,
     borderWidth: 1,
-    borderColor: theme.colors.rule,
+    borderColor: theme.colors.transparent,
     borderRadius: theme.radius,
-    backgroundColor: theme.colors.paper,
+    backgroundColor: theme.colors.surface,
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.space.sm,
   },
-  provider: { minHeight: 112, flexDirection: 'column', borderColor: theme.colors.transparent, paddingHorizontal: 0, paddingVertical: theme.space.xs },
+  provider: { minHeight: 112, flexDirection: 'column', backgroundColor: theme.colors.paper, borderColor: theme.colors.transparent, paddingHorizontal: 0, paddingVertical: theme.space.xs },
   providerRow: { minHeight: 64, flexDirection: 'row', paddingHorizontal: theme.space.md, paddingVertical: theme.space.sm, borderBottomColor: theme.colors.rule, gap: theme.space.md },
   selected: { borderColor: theme.colors.accent, backgroundColor: theme.colors.selection },
   pressed: { backgroundColor: theme.colors.selection },
