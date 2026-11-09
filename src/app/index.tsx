@@ -1,11 +1,12 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '../components/AppHeader';
 import { ActionButton } from '../components/ActionButton';
 import { Choice } from '../components/Choice';
+import { Icon } from '../components/Icon';
 import { getGenres, getWatchProviders } from '../lib/tmdb';
 import type { Genre, WatchProvider } from '../lib/tmdb';
 import { theme } from '../theme';
@@ -22,7 +23,7 @@ export default function HomeScreen() {
   const [loadError, setLoadError] = useState(false);
   const [genreError, setGenreError] = useState(false);
   const [disclosureFocused, setDisclosureFocused] = useState(false);
-  const [submitFocused, setSubmitFocused] = useState(false);
+  const [disclosureHovered, setDisclosureHovered] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
 
   const canRecommend = selectedProviders.length > 0 && providers !== null && genres !== null;
@@ -65,142 +66,126 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.screen}>
       <ScrollView
+        style={styles.scroll}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
         <AppHeader />
-        <View style={styles.heading}>
-          <Text style={styles.title} accessibilityRole="header">Co dziś obejrzysz?</Text>
-          <Text style={styles.description}>Filmy w Twoich abonamentach w Polsce.</Text>
-        </View>
-
         <View style={styles.section}>
           <View style={styles.sectionHeading}>
-            <Text style={styles.sectionTitle} accessibilityRole="header">Twoje platformy</Text>
-            <Text style={styles.description}>Wybierz co najmniej jedną.</Text>
+            <Text nativeID="providers-heading" style={styles.sectionTitle} accessibilityRole="header">Platformy</Text>
+            {providers && providers.length > 6 ? (
+              <Pressable
+                testID="toggle-providers"
+                accessibilityRole="button"
+                accessibilityLabel={expanded ? 'Zwiń platformy' : 'Wszystkie platformy'}
+                accessibilityState={{ expanded }}
+                onPress={() => {
+                  setExpanded((current) => !current);
+                  setProviderQuery('');
+                }}
+                onFocus={() => setDisclosureFocused(true)}
+                onBlur={() => setDisclosureFocused(false)}
+                onHoverIn={() => setDisclosureHovered(true)}
+                onHoverOut={() => setDisclosureHovered(false)}
+                style={({ pressed }) => [styles.disclosure,
+                  (pressed || disclosureHovered) && styles.pressed, disclosureFocused && styles.focused]}
+              >
+                <Text style={styles.disclosureText}>{expanded ? 'Mniej' : 'Wszystkie'}</Text>
+                <Icon name={expanded ? 'up' : 'down'} size={16} color={theme.colors.secondaryInk} />
+              </Pressable>
+            ) : null}
           </View>
           {providers ? (
             <>
-              {providers.length > 6 ? (
-                <Pressable
-                  testID="toggle-providers"
-                  accessibilityRole="button"
-                  accessibilityState={{ expanded }}
-                  onPress={() => {
-                    setExpanded((current) => !current);
-                    setProviderQuery('');
-                  }}
-                  onFocus={() => setDisclosureFocused(true)}
-                  onBlur={() => setDisclosureFocused(false)}
-                  style={({ pressed }) => [
-                    styles.disclosure,
-                    pressed && styles.pressed,
-                    disclosureFocused && styles.focused,
-                  ]}
-                >
-                  <Text style={styles.disclosureText}>
-                    {expanded ? 'Zwiń listę platform' : `Wszystkie platformy (${providers.length})`}
-                  </Text>
-                </Pressable>
-              ) : null}
               {expanded ? (
-                <TextInput
-                  testID="provider-search"
-                  accessibilityLabel="Szukaj platformy"
-                  placeholder="Szukaj platformy"
-                  placeholderTextColor={theme.colors.muted}
-                  selectionColor={theme.colors.accent}
-                  value={providerQuery}
-                  onChangeText={setProviderQuery}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="done"
-                  onFocus={() => setSearchFocused(true)}
-                  onBlur={() => setSearchFocused(false)}
-                  style={[styles.search, searchFocused && styles.focused]}
-                />
+                <View style={[styles.searchField, searchFocused && styles.focused]}>
+                  <Icon name="search" color={theme.colors.muted} />
+                  <TextInput
+                    testID="provider-search"
+                    accessibilityLabel="Szukaj platformy"
+                    accessibilityLabelledBy="providers-heading"
+                    placeholder="Szukaj platformy"
+                    placeholderTextColor={theme.colors.muted}
+                    selectionColor={theme.colors.accent}
+                    value={providerQuery}
+                    onChangeText={setProviderQuery}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="done"
+                    onFocus={() => setSearchFocused(true)}
+                    onBlur={() => setSearchFocused(false)}
+                    style={styles.search}
+                  />
+                </View>
               ) : null}
-              <View style={styles.options}>
+              <ScrollView horizontal={!expanded} showsHorizontalScrollIndicator={false}
+                scrollEnabled={!expanded} contentContainerStyle={expanded ? styles.providerList : styles.providerRail}>
                 {visibleProviders?.map((provider) => (
                   <Choice
                     key={provider.provider_id}
+                    kind={expanded ? 'provider-row' : 'provider'}
                     testID={`provider-${provider.provider_id}`}
                     label={provider.provider_name}
                     imagePath={provider.logo_path}
                     selected={selectedProviders.includes(provider.provider_id)}
                     onPress={() => toggleProvider(provider.provider_id)}
-                    style={styles.provider}
+                    style={expanded ? styles.providerRow : styles.providerItem}
                   />
                 ))}
-              </View>
-              {visibleProviders?.length === 0 ? (
-                <Text style={styles.description}>Brak platform o tej nazwie.</Text>
-              ) : null}
+              </ScrollView>
+              {visibleProviders?.length === 0 ? <Text style={styles.message}>Brak platform o tej nazwie.</Text> : null}
             </>
           ) : loadError ? (
             <>
-              <Text style={styles.description} accessibilityRole="alert">Nie udało się pobrać platform.</Text>
+              <Text style={styles.message} accessibilityRole="alert">Nie udało się pobrać platform.</Text>
               <ActionButton testID="retry-providers" label="Spróbuj ponownie" onPress={() => setLoadAttempt((current) => current + 1)} secondary />
             </>
           ) : (
-            <ActivityIndicator color={theme.colors.accent} accessibilityLabel="Pobieranie platform" />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.providerRail} accessibilityRole="progressbar" accessibilityLabel="Pobieranie platform">
+              {Array.from({ length: 6 }, (_, index) => (
+                <View key={index} style={styles.skeletonProvider}>
+                  <View style={styles.skeletonLogo} />
+                  <View style={styles.skeletonLabel} />
+                </View>
+              ))}
+            </ScrollView>
           )}
         </View>
         <View style={styles.section}>
-          <View style={styles.sectionHeading}>
-            <Text style={styles.sectionTitle} accessibilityRole="header">Gatunki</Text>
-            <Text style={styles.description}>Film pasuje do co najmniej jednego z wybranych.</Text>
-          </View>
+          <Text style={styles.sectionTitle} accessibilityRole="header">Gatunki</Text>
           {genres ? (
-            <View style={styles.options}>
-              <Choice
-                testID="genre-any"
-                label="Dowolne"
-                selected={selectedGenres.length === 0}
-                onPress={() => setSelectedGenres([])}
-              />
+            <View style={styles.genres}>
+              <Choice testID="genre-any" label="Dowolne" selected={selectedGenres.length === 0} onPress={() => setSelectedGenres([])} />
               {genres.map((genre) => (
-                <Choice
-                  key={genre.id}
-                  testID={`genre-${genre.id}`}
-                  label={genre.name}
-                  selected={selectedGenres.includes(genre.id)}
-                  onPress={() => toggleGenre(genre.id)}
-                />
+                <Choice key={genre.id} testID={`genre-${genre.id}`} label={genre.name}
+                  selected={selectedGenres.includes(genre.id)} onPress={() => toggleGenre(genre.id)} />
               ))}
             </View>
           ) : genreError ? (
             <>
-              <Text style={styles.description} accessibilityRole="alert">Nie udało się pobrać gatunków.</Text>
+              <Text style={styles.message} accessibilityRole="alert">Nie udało się pobrać gatunków.</Text>
               <ActionButton testID="retry-genres" label="Spróbuj ponownie" onPress={() => setLoadAttempt((current) => current + 1)} secondary />
             </>
           ) : (
-            <ActivityIndicator color={theme.colors.accent} accessibilityLabel="Pobieranie gatunków" />
+            <View style={styles.genres} accessibilityRole="progressbar" accessibilityLabel="Pobieranie gatunków">
+              {[0, 1, 2, 3].map((index) => <View key={index} style={styles.skeletonGenre} />)}
+            </View>
           )}
         </View>
       </ScrollView>
       <View style={styles.actions}>
-        <Pressable
+        <ActionButton
           testID="find-movie"
-          accessibilityRole="button"
-          accessibilityState={{ disabled: !canRecommend }}
+          label="Znajdź filmy"
+          icon="arrow"
           disabled={!canRecommend}
           onPress={() => router.push({
             pathname: '/recommendation',
             params: { providers: selectedProviders.join(','), genres: selectedGenres.join(',') },
           })}
-          onFocus={() => setSubmitFocused(true)}
-          onBlur={() => setSubmitFocused(false)}
-          style={({ pressed }) => [
-            styles.submit,
-            !canRecommend && styles.disabled,
-            pressed && styles.submitPressed,
-            submitFocused && styles.focused,
-          ]}
-        >
-          <Text style={styles.submitText}>Znajdź filmy</Text>
-        </Pressable>
+        />
       </View>
     </SafeAreaView>
   );
@@ -208,91 +193,26 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.paper },
-  content: {
-    padding: theme.space.xl,
-    gap: theme.space.xxl,
-    width: '100%',
-    maxWidth: theme.contentWidth,
-    alignSelf: 'center',
-  },
-  heading: { gap: theme.space.sm },
-  title: {
-    fontFamily: theme.fonts.body,
-    color: theme.colors.ink,
-    fontSize: theme.text.heading,
-    lineHeight: 34,
-    fontWeight: '700',
-    flexShrink: 1,
-  },
-  description: {
-    fontFamily: theme.fonts.body,
-    color: theme.colors.muted,
-    fontSize: theme.text.body,
-    lineHeight: 24,
-  },
+  scroll: { flex: 1 },
+  content: { width: '100%', maxWidth: theme.contentWidth, alignSelf: 'center', padding: theme.space.xl, gap: theme.space.xl },
   section: { gap: theme.space.lg },
-  sectionHeading: { gap: theme.space.xs },
-  sectionTitle: {
-    fontFamily: theme.fonts.body,
-    color: theme.colors.ink,
-    fontSize: theme.text.section,
-    fontWeight: '700',
-  },
-  options: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.space.sm },
-  provider: { width: '100%', minHeight: 56 },
-  search: {
-    minHeight: 52,
-    borderWidth: 1,
-    borderColor: theme.colors.muted,
-    borderRadius: theme.radius,
-    backgroundColor: theme.colors.surface,
-    paddingHorizontal: theme.space.md,
-    paddingVertical: theme.space.md,
-    fontFamily: theme.fonts.body,
-    fontSize: theme.text.body,
-    color: theme.colors.ink,
-  },
-  disclosure: {
-    minHeight: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: theme.radius,
-    paddingHorizontal: theme.space.md,
-    paddingVertical: theme.space.sm,
-  },
-  disclosureText: {
-    fontFamily: theme.fonts.body,
-    fontSize: theme.text.body,
-    lineHeight: 24,
-    textAlign: 'center',
-    color: theme.colors.secondaryInk,
-    textDecorationLine: 'underline',
-  },
+  sectionHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: theme.space.sm },
+  sectionTitle: { flexShrink: 1, fontFamily: theme.fonts.medium, fontSize: theme.text.section, lineHeight: 28, color: theme.colors.ink },
+  providerRail: { gap: theme.space.sm, paddingVertical: theme.space.xs },
+  providerList: { width: '100%' },
+  providerItem: { width: 80 },
+  providerRow: { width: '100%' },
+  genres: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.space.sm },
+  message: { fontFamily: theme.fonts.body, fontSize: theme.text.body, lineHeight: 24, color: theme.colors.secondaryInk },
+  searchField: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: theme.space.md, borderWidth: 1, borderColor: theme.colors.muted, paddingHorizontal: theme.space.md },
+  search: { flex: 1, minWidth: 0, minHeight: 50, fontFamily: theme.fonts.body, fontSize: theme.text.body, color: theme.colors.ink, paddingVertical: theme.space.sm },
+  disclosure: { minHeight: 48, flexDirection: 'row', gap: theme.space.sm, alignItems: 'center', justifyContent: 'center', paddingHorizontal: theme.space.sm },
+  disclosureText: { fontFamily: theme.fonts.body, fontSize: theme.text.caption, lineHeight: 20, color: theme.colors.secondaryInk },
   pressed: { backgroundColor: theme.colors.selection },
   focused: { outlineColor: theme.colors.focus, outlineWidth: 2, outlineOffset: 2 },
-  actions: {
-    paddingHorizontal: theme.space.xl,
-    paddingVertical: theme.space.md,
-    width: '100%',
-    maxWidth: theme.contentWidth,
-    alignSelf: 'center',
-  },
-  submit: {
-    minHeight: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: theme.space.lg,
-    paddingVertical: theme.space.md,
-    backgroundColor: theme.colors.button,
-    borderRadius: theme.radius,
-  },
-  submitText: {
-    fontFamily: theme.fonts.body,
-    fontSize: theme.text.body,
-    fontWeight: '700',
-    lineHeight: 24,
-    color: theme.colors.buttonInk,
-  },
-  submitPressed: { backgroundColor: theme.colors.secondaryInk },
-  disabled: { opacity: 0.45 },
+  actions: { paddingHorizontal: theme.space.xl, paddingTop: theme.space.md, paddingBottom: theme.space.lg, borderTopWidth: 1, borderTopColor: theme.colors.rule, width: '100%', maxWidth: theme.contentWidth, alignSelf: 'center' },
+  skeletonProvider: { width: 80, minHeight: 112, alignItems: 'center', justifyContent: 'center', gap: theme.space.md },
+  skeletonLogo: { width: 56, height: 56, backgroundColor: theme.colors.surface },
+  skeletonLabel: { width: '80%', height: 12, backgroundColor: theme.colors.rule },
+  skeletonGenre: { width: 96, height: 48, backgroundColor: theme.colors.surface },
 });

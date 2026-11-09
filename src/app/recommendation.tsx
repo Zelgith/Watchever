@@ -1,10 +1,9 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { FlatList, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ActionButton } from '../components/ActionButton';
-import { AppHeader } from '../components/AppHeader';
 import { MovieCard } from '../components/MovieCard';
 import { getRecommendations } from '../lib/recommendations';
 import type { MovieDetails } from '../lib/tmdb';
@@ -20,6 +19,9 @@ function selectionIds(value: string | string[] | undefined): number[] {
 
 export default function RecommendationScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const movieWidth = Math.floor((Math.min(width - insets.left - insets.right, theme.contentWidth) - theme.space.xl * 2 - theme.space.lg) / 2);
   const list = useRef<FlatList<MovieDetails>>(null);
   const { providers, genres } = useLocalSearchParams<{ providers?: string; genres?: string }>();
   const [movies, setMovies] = useState<MovieDetails[]>([]);
@@ -60,25 +62,25 @@ export default function RecommendationScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
+      <View style={styles.toolbar}>
+        <View style={styles.titleGroup}>
+          <Text accessibilityRole="header" style={styles.title}>Filmy</Text>
+          {!loading && !failed ? <Text testID="movie-count" accessibilityLabel={`Liczba filmów: ${movies.length}`} style={styles.count}>{movies.length}</Text> : null}
+        </View>
+        <ActionButton testID="change-filters-button" label="Filtry" icon="filters" secondary compact
+          onPress={() => router.canGoBack() ? router.back() : router.replace('/')} />
+      </View>
       <FlatList
         ref={list}
         testID="recommendations-list"
         data={movies}
+        numColumns={2}
+        columnWrapperStyle={styles.row}
         keyExtractor={(movie) => String(movie.id)}
         contentContainerStyle={styles.content}
-        ListHeaderComponent={(
-          <View style={styles.heading}>
-            <AppHeader />
-            <View style={styles.titleGroup}>
-              <Text accessibilityRole="header" style={styles.title}>
-                Pasujące filmy{!loading && !failed ? ` (${movies.length})` : ''}
-              </Text>
-              <Text style={styles.message}>W Twoich abonamentach w Polsce.</Text>
-            </View>
-          </View>
-        )}
         renderItem={({ item }) => (
           <MovieCard
+            style={{ width: movieWidth }}
             movie={item}
             providerIds={providerIds}
             onDismiss={() => {
@@ -88,42 +90,46 @@ export default function RecommendationScreen() {
           />
         )}
         ListEmptyComponent={(
-          <View style={styles.empty}>
-            {loading ? (
-              <ActivityIndicator color={theme.colors.accent} accessibilityLabel="Wyszukiwanie filmów" />
-            ) : failed ? (
-              <>
-                <Text testID="recommendations-error" style={styles.message} accessibilityRole="alert">
-                  Nie udało się pobrać propozycji filmów. Sprawdź połączenie i spróbuj ponownie.
-                </Text>
-                <ActionButton testID="retry-movies" label="Spróbuj ponownie" onPress={() => setAttempt((current) => current + 1)} secondary />
-              </>
-            ) : (
+          loading ? (
+            <View style={styles.row} accessibilityRole="progressbar" accessibilityLabel="Wyszukiwanie filmów">
+              {[0, 1].map((index) => (
+                <View key={index} style={styles.skeleton}>
+                  <View style={styles.skeletonPoster} />
+                  <View style={styles.skeletonTitle} />
+                  <View style={styles.skeletonMeta} />
+                </View>
+              ))}
+            </View>
+          ) : failed ? (
+            <View style={styles.empty}>
+              <Text testID="recommendations-error" style={styles.message} accessibilityRole="alert">Nie udało się pobrać filmów.</Text>
+              <ActionButton testID="retry-movies" label="Spróbuj ponownie" onPress={() => setAttempt((current) => current + 1)} secondary />
+            </View>
+          ) : (
+            <View style={styles.empty}>
               <Text testID="recommendations-empty" style={styles.message}>
-                {loadedCount > 0 ? 'Odrzucono wszystkie propozycje. Zmień filtry, aby rozpocząć nowe wyszukiwanie.' : 'Brak pasujących filmów. Spróbuj zmienić platformy lub gatunki.'}
+                {loadedCount > 0 ? 'To wszystkie propozycje. Zmień filtry, by szukać dalej.' : 'Brak filmów dla tych filtrów.'}
               </Text>
-            )}
-          </View>
+            </View>
+          )
         )}
       />
-      <View style={styles.actions}>
-        <ActionButton
-          testID="change-filters-button"
-          label="Zmień filtry"
-          onPress={() => router.canGoBack() ? router.back() : router.replace('/')}
-        />
-      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.paper },
-  content: { flexGrow: 1, width: '100%', maxWidth: theme.contentWidth, alignSelf: 'center', padding: theme.space.xl },
-  heading: { gap: theme.space.xxl, paddingBottom: theme.space.sm },
-  titleGroup: { gap: theme.space.sm },
-  empty: { gap: theme.space.lg, paddingVertical: theme.space.xxl },
-  title: { fontFamily: theme.fonts.body, fontSize: theme.text.heading, fontWeight: '700', lineHeight: 34, color: theme.colors.ink, flexShrink: 1 },
-  message: { fontFamily: theme.fonts.body, fontSize: theme.text.body, lineHeight: 24, color: theme.colors.muted },
-  actions: { paddingHorizontal: theme.space.xl, paddingVertical: theme.space.md, width: '100%', maxWidth: theme.contentWidth, alignSelf: 'center' },
+  toolbar: { width: '100%', maxWidth: theme.contentWidth, alignSelf: 'center', padding: theme.space.xl, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: theme.space.md },
+  titleGroup: { flexDirection: 'row', alignItems: 'center', gap: theme.space.md, flexShrink: 1 },
+  title: { minWidth: 0, flexShrink: 1, fontFamily: theme.fonts.display, fontSize: theme.text.wordmark, lineHeight: 52, color: theme.colors.ink, textTransform: 'uppercase' },
+  count: { fontFamily: theme.fonts.body, fontSize: theme.text.body, color: theme.colors.muted, fontVariant: ['tabular-nums'] },
+  content: { flexGrow: 1, width: '100%', maxWidth: theme.contentWidth, alignSelf: 'center', paddingHorizontal: theme.space.xl, paddingBottom: theme.space.xl },
+  row: { flexDirection: 'row', gap: theme.space.lg },
+  empty: { gap: theme.space.lg, paddingTop: theme.space.xxxl },
+  message: { fontFamily: theme.fonts.body, fontSize: theme.text.body, lineHeight: 26, color: theme.colors.secondaryInk },
+  skeleton: { flex: 1, gap: theme.space.md },
+  skeletonPoster: { width: '100%', aspectRatio: 2 / 3, backgroundColor: theme.colors.surface },
+  skeletonTitle: { height: 20, width: '90%', backgroundColor: theme.colors.surface },
+  skeletonMeta: { height: 12, width: '55%', backgroundColor: theme.colors.surface },
 });
