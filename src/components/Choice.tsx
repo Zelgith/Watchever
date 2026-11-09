@@ -12,16 +12,14 @@ type ChoiceProps = {
   onPress: () => void;
   imagePath?: string | null;
   style?: StyleProp<ViewStyle>;
-  readOnly?: boolean;
 };
 
-export function Choice({ testID, label, selected, onPress, imagePath, style, readOnly = false, }: ChoiceProps) {
+export function Choice({ testID, label, selected, onPress, imagePath, style }: ChoiceProps) {
   const [focused, setFocused] = useState(false);
 
   return (
     <Pressable
       testID={testID}
-      disabled={readOnly}
       accessibilityRole="checkbox"
       accessibilityLabel={label}
       accessibilityState={{ checked: selected }}
@@ -31,7 +29,7 @@ export function Choice({ testID, label, selected, onPress, imagePath, style, rea
       style={({ pressed }) => [
         styles.choice,
         selected && styles.selected,
-        pressed && !readOnly && styles.pressed,
+        pressed && styles.pressed,
         focused && styles.focused,
         style,
       ]}
@@ -45,11 +43,9 @@ export function Choice({ testID, label, selected, onPress, imagePath, style, rea
         />
       ) : null}
       <Text style={styles.label}>{label}</Text>
-      {!readOnly && (
-        <View style={[styles.check, selected && styles.checked]}>
-          {selected ? <Text style={styles.checkmark}>✓</Text> : null}
-        </View>
-      )}
+      <View style={[styles.check, selected && styles.checked]}>
+        {selected ? <Text style={styles.checkmark}>✓</Text> : null}
+      </View>
     </Pressable>
   );
 }

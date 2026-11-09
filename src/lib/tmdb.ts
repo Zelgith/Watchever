@@ -23,7 +23,7 @@ export type MovieDetails = {
   poster_path: string | null;
   release_date: string;
   overview: string | null;
-  runtime: number;
+  runtime: number | null;
   genres: Genre[];
   'watch/providers': {
     results: Record<string, RegionalAvailability>;
