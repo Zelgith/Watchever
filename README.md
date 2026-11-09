@@ -61,6 +61,8 @@ npm run android  # emulator
 
 Kontrole: `npm run typecheck` i `npm test`.
 
+APK testowy: `npm run apk` (JDK 17 i Android SDK). Wynik: `dist/Watchever.apk`; działa bez Expo Go i Metro.
+
 ## Dane TMDB
 
 Platformy są pobierane dla regionu `PL`, a nazwy gatunków i dane filmów w języku `pl-PL`. Aplikacja łączy się bezpośrednio z TMDB przez HTTPS i uwierzytelnia zapytania nagłówkiem Bearer.
