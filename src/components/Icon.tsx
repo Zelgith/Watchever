@@ -8,8 +8,8 @@ const paths = {
   down: 'm6 9 6 6 6-6',
   up: 'm6 15 6-6 6 6',
   arrow: 'M5 12h14m-6-6 6 6-6 6',
+  back: 'M19 12H5m6 6-6-6 6-6',
   search: 'M21 21l-4.3-4.3M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0',
-  filters: 'M4 7h9m4 0h3M4 17h3m4 0h9M13 4v6M7 14v6',
   play: 'm9 5 11 7-11 7V5Z',
 } as const;
 

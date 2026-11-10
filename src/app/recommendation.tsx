@@ -4,6 +4,7 @@ import { FlatList, StyleSheet, Text, useWindowDimensions, View } from 'react-nat
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ActionButton } from '../components/ActionButton';
+import { IconButton } from '../components/IconButton';
 import { MovieCard } from '../components/MovieCard';
 import { getRecommendations } from '../lib/recommendations';
 import type { MovieDetails } from '../lib/tmdb';
@@ -63,12 +64,12 @@ export default function RecommendationScreen() {
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.toolbar}>
+        <IconButton testID="change-filters-button" label="Wróć" icon="back"
+          onPress={() => router.canGoBack() ? router.back() : router.replace('/')} />
         <View style={styles.titleGroup}>
           <Text accessibilityRole="header" style={styles.title}>Filmy</Text>
           {!loading && !failed ? <Text testID="movie-count" accessibilityLabel={`Liczba filmów: ${movies.length}`} style={styles.count}>{movies.length}</Text> : null}
         </View>
-        <ActionButton testID="change-filters-button" label="Filtry" icon="filters" secondary compact
-          onPress={() => router.canGoBack() ? router.back() : router.replace('/')} />
       </View>
       <FlatList
         ref={list}
@@ -121,7 +122,7 @@ export default function RecommendationScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.paper },
   toolbar: { width: '100%', maxWidth: theme.contentWidth, alignSelf: 'center', padding: theme.space.xl, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: theme.space.md },
-  titleGroup: { flexDirection: 'row', alignItems: 'center', gap: theme.space.md, flexShrink: 1 },
+  titleGroup: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: theme.space.md },
   title: { minWidth: 0, flexShrink: 1, fontFamily: theme.fonts.display, fontSize: theme.text.wordmark, lineHeight: 52, color: theme.colors.ink, textTransform: 'uppercase' },
   count: { fontFamily: theme.fonts.body, fontSize: theme.text.body, color: theme.colors.muted, fontVariant: ['tabular-nums'] },
   content: { flexGrow: 1, width: '100%', maxWidth: theme.contentWidth, alignSelf: 'center', paddingHorizontal: theme.space.xl, paddingBottom: theme.space.xl },
