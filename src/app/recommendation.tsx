@@ -64,12 +64,12 @@ export default function RecommendationScreen() {
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.toolbar}>
-        <IconButton testID="change-filters-button" label="Wróć" icon="back"
-          onPress={() => router.canGoBack() ? router.back() : router.replace('/')} />
         <View style={styles.titleGroup}>
           <Text accessibilityRole="header" style={styles.title}>Filmy</Text>
           {!loading && !failed ? <Text testID="movie-count" accessibilityLabel={`Liczba filmów: ${movies.length}`} style={styles.count}>{movies.length}</Text> : null}
         </View>
+        <IconButton testID="change-filters-button" label="Wróć" icon="back"
+          onPress={() => router.canGoBack() ? router.back() : router.replace('/')} />
       </View>
       <FlatList
         ref={list}
