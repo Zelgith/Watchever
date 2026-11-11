@@ -1,19 +1,12 @@
 import { getMovieDetails, requestTmdb, WATCH_REGION } from './tmdb.ts';
 import type { MovieDetails } from './tmdb.ts';
+import { releaseYear, validatePreferences } from './preferences.ts';
+import type { MoviePreferences } from './preferences.ts';
 
-export type MoviePreferences = {
-  providerIds: readonly number[];
-  genreIds: readonly number[];
-};
+export type { MoviePreferences } from './preferences.ts';
 
 export function discoveryParameters(preferences: MoviePreferences): Record<string, string> {
-  const validId = (id: number) => Number.isSafeInteger(id) && id > 0;
-  if (!preferences.providerIds.length || !preferences.providerIds.every(validId)) {
-    throw new Error('Wybierz co najmniej jedną platformę.');
-  }
-  if (!preferences.genreIds.every(validId)) {
-    throw new Error('Nieprawidłowy wybór gatunków.');
-  }
+  validatePreferences(preferences);
 
   return {
     watch_region: WATCH_REGION,
@@ -23,6 +16,9 @@ export function discoveryParameters(preferences: MoviePreferences): Record<strin
     include_adult: 'false',
     include_video: 'false',
     ...(preferences.genreIds.length ? { with_genres: preferences.genreIds.join('|') } : {}),
+    ...(preferences.yearFrom !== undefined ? { 'primary_release_date.gte': `${preferences.yearFrom}-01-01` } : {}),
+    ...(preferences.yearTo !== undefined ? { 'primary_release_date.lte': `${preferences.yearTo}-12-31` } : {}),
+    ...(preferences.maxRuntime !== undefined ? { 'with_runtime.gte': '1', 'with_runtime.lte': String(preferences.maxRuntime) } : {}),
   };
 }
 
@@ -35,7 +31,13 @@ export function matchesPreferences(movie: MovieDetails, preferences: MoviePrefer
     preferences.genreIds.length === 0 ||
     movie.genres.some((genre) => preferences.genreIds.includes(genre.id));
 
-  return hasSubscription && hasGenre;
+  const year = releaseYear(movie.release_date);
+  const hasYear = (preferences.yearFrom === undefined || (year !== undefined && year >= preferences.yearFrom)) &&
+    (preferences.yearTo === undefined || (year !== undefined && year <= preferences.yearTo));
+  const hasRuntime = preferences.maxRuntime === undefined ||
+    (movie.runtime !== null && Number.isFinite(movie.runtime) && movie.runtime > 0 && movie.runtime <= preferences.maxRuntime);
+
+  return hasSubscription && hasGenre && hasYear && hasRuntime;
 }
 
 export async function getRecommendations(

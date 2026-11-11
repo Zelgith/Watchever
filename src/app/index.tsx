@@ -1,12 +1,15 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '../components/AppHeader';
 import { ActionButton } from '../components/ActionButton';
 import { Choice } from '../components/Choice';
 import { Icon } from '../components/Icon';
+import { FilterField } from '../components/FilterField';
+import { preferencesFromFields } from '../lib/preferences';
+import type { FilterFields } from '../lib/preferences';
 import { getGenres, getWatchProviders } from '../lib/tmdb';
 import type { Genre, WatchProvider } from '../lib/tmdb';
 import { theme } from '../theme';
@@ -25,6 +28,8 @@ export default function HomeScreen() {
   const [disclosureFocused, setDisclosureFocused] = useState(false);
   const [disclosureHovered, setDisclosureHovered] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const [fields, setFields] = useState<FilterFields>({ yearFrom: '', yearTo: '', maxRuntime: '' });
+  const [filterError, setFilterError] = useState<string | null>(null);
 
   const canRecommend = selectedProviders.length > 0 && providers !== null && genres !== null;
   const normalizedQuery = providerQuery.trim().toLocaleLowerCase('pl');
@@ -63,6 +68,24 @@ export default function HomeScreen() {
     );
   }
 
+  function changeField(name: keyof FilterFields, value: string) {
+    setFields((current) => ({ ...current, [name]: value }));
+    setFilterError(null);
+  }
+
+  function findMovies() {
+    try {
+      preferencesFromFields(selectedProviders, selectedGenres, fields);
+      setFilterError(null);
+      Keyboard.dismiss();
+      router.push({ pathname: '/recommendation', params: {
+        providers: selectedProviders.join(','), genres: selectedGenres.join(','), ...fields,
+      } });
+    } catch (error) {
+      setFilterError(error instanceof Error ? error.message : 'Sprawdź filtry.');
+    }
+  }
+
   const providerChoices = visibleProviders?.map((provider) => (
     <Choice
       key={provider.provider_id}
@@ -78,6 +101,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
+      <KeyboardAvoidingView style={styles.screen} behavior="height">
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
@@ -177,19 +201,26 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle} accessibilityRole="header">Rok produkcji</Text>
+          <View style={styles.filterRow}>
+            <FilterField testID="year-from" label="Rok od" value={fields.yearFrom} onChangeText={(value) => changeField('yearFrom', value)} />
+            <FilterField testID="year-to" label="Rok do" value={fields.yearTo} onChangeText={(value) => changeField('yearTo', value)} />
+          </View>
+          <FilterField testID="max-runtime" label="Maks. czas (min)" value={fields.maxRuntime} onChangeText={(value) => changeField('maxRuntime', value)} />
+        </View>
       </ScrollView>
       <View style={styles.actions}>
+        {filterError ? <Text testID="filter-error" accessibilityRole="alert" style={styles.message}>{filterError}</Text> : null}
         <ActionButton
           testID="find-movie"
           label="Znajdź filmy"
           icon="arrow"
           disabled={!canRecommend}
-          onPress={() => router.push({
-            pathname: '/recommendation',
-            params: { providers: selectedProviders.join(','), genres: selectedGenres.join(',') },
-          })}
+          onPress={findMovies}
         />
       </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -206,6 +237,7 @@ const styles = StyleSheet.create({
   providerItem: { width: 88 },
   providerRow: { width: '100%' },
   genres: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.space.sm },
+  filterRow: { flexDirection: 'row', gap: theme.space.md },
   message: { fontFamily: theme.fonts.body, fontSize: theme.text.body, lineHeight: 24, color: theme.colors.secondaryInk },
   searchField: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: theme.space.md, borderWidth: 1, borderColor: theme.colors.muted, paddingHorizontal: theme.space.md },
   search: { flex: 1, minWidth: 0, minHeight: 50, fontFamily: theme.fonts.body, fontSize: theme.text.body, color: theme.colors.ink, paddingVertical: theme.space.sm },

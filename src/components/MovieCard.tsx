@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { MovieDetails } from '../lib/tmdb';
 import { WATCH_REGION } from '../lib/tmdb';
+import { releaseYear } from '../lib/preferences';
 import { theme } from '../theme';
 import { ActionButton } from './ActionButton';
 import { Icon } from './Icon';
@@ -22,7 +23,10 @@ export function MovieCard({ movie, providerIds, onDismiss, style }: Props) {
   const providers = movie['watch/providers'].results[WATCH_REGION]?.flatrate?.filter(
     (provider) => providerIds.includes(provider.provider_id),
   ) ?? [];
-  const year = movie.release_date?.match(/^\d{4}-\d{2}-\d{2}$/)?.[0].slice(0, 4);
+  const year = releaseYear(movie.release_date);
+  const rating = movie.vote_count && movie.vote_count > 0 && movie.vote_average !== null &&
+    movie.vote_average !== undefined && Number.isFinite(movie.vote_average) && movie.vote_average >= 0 && movie.vote_average <= 10
+    ? movie.vote_average.toLocaleString('pl-PL', { maximumFractionDigits: 1, minimumFractionDigits: 1 }) : null;
   const poster = movie.poster_path && !posterFailed ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null;
 
   return (
@@ -80,9 +84,10 @@ export function MovieCard({ movie, providerIds, onDismiss, style }: Props) {
                 <View style={styles.facts}>
                   <View style={styles.metadata}>
                     <Text style={styles.text}>{year ?? 'Rok nieznany'}</Text>
-                    {movie.runtime !== null && movie.runtime > 0 ? <Text style={styles.text}>{movie.runtime} min</Text> : null}
+                    <Text testID={`movie-runtime-${movie.id}`} style={styles.text}>{movie.runtime !== null && movie.runtime > 0 ? `${movie.runtime} min` : 'Czas nieznany'}</Text>
                   </View>
-                  {movie.genres.length > 0 ? <Text style={styles.caption}>{movie.genres.map((genre) => genre.name).join(', ')}</Text> : null}
+                  <Text style={styles.caption}>{movie.genres.length > 0 ? movie.genres.map((genre) => genre.name).join(', ') : 'Gatunek nieznany'}</Text>
+                  <Text testID={`movie-rating-${movie.id}`} style={styles.caption}>{rating ? `TMDB ${rating}/10` : 'Brak ocen TMDB'}</Text>
                   {providers.map((provider) => (
                     <View key={provider.provider_id} style={styles.provider}>
                       {provider.logo_path ? <Image source={`https://image.tmdb.org/t/p/w92${provider.logo_path}`} style={styles.providerLogo} accessible={false} /> : null}

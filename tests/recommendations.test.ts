@@ -37,6 +37,37 @@ test('brak wybranego gatunku nie ogranicza wyszukiwania', () => {
   assert.equal(matchesPreferences(movie, { providerIds: [8], genreIds: [] }), true);
 });
 
+test('rok i czas trafiają do zapytania jako granice włączne', () => {
+  const parameters = discoveryParameters({ providerIds: [8], genreIds: [28], yearFrom: 1990, yearTo: 2020, maxRuntime: 120 });
+  assert.equal(parameters['primary_release_date.gte'], '1990-01-01');
+  assert.equal(parameters['primary_release_date.lte'], '2020-12-31');
+  assert.equal(parameters['with_runtime.gte'], '1');
+  assert.equal(parameters['with_runtime.lte'], '120');
+  const noLimits = discoveryParameters({ providerIds: [8], genreIds: [] });
+  assert.equal('primary_release_date.gte' in noLimits, false);
+  assert.equal('with_runtime.lte' in noLimits, false);
+});
+
+test('każdy aktywny filtr musi pasować, także na granicy lat i minut', () => {
+  const preferences = { providerIds: [8], genreIds: [28], yearFrom: 2000, yearTo: 2020, maxRuntime: 120 };
+  const matching = { ...movie, release_date: '2000-01-01', runtime: 120 };
+  assert.equal(matchesPreferences(matching, preferences), true);
+  assert.equal(matchesPreferences({ ...matching, release_date: '2020-12-31' }, preferences), true);
+  for (const changed of [
+    { release_date: '1999-12-31' }, { release_date: '2021-01-01' }, { release_date: '' },
+    { runtime: 121 }, { runtime: null }, { runtime: 0 }, { runtime: -1 }, { runtime: NaN },
+    { genres: [{ id: 35, name: 'Komedia' }] },
+    { 'watch/providers': { results: { PL: { rent: [netflix] } } } },
+  ]) assert.equal(matchesPreferences({ ...matching, ...changed }, preferences), false, JSON.stringify(changed));
+});
+
+test('nieznany rok lub czas wyklucza film tylko przy aktywnym filtrze', () => {
+  assert.equal(matchesPreferences(movie, { providerIds: [8], genreIds: [] }), true);
+  assert.equal(matchesPreferences(movie, { providerIds: [8], genreIds: [], yearTo: 2020 }), false);
+  assert.equal(matchesPreferences(movie, { providerIds: [8], genreIds: [], maxRuntime: 120 }), false);
+  assert.equal(matchesPreferences({ ...movie, release_date: '2020-01-01' }, { providerIds: [8], genreIds: [], yearFrom: 2020 }), true);
+});
+
 test('nie rozpoczyna wyszukiwania bez platformy', () => {
   assert.throws(() => discoveryParameters({ providerIds: [], genreIds: [] }));
 });

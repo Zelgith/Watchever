@@ -24,6 +24,8 @@ export type MovieDetails = {
   release_date: string;
   overview: string | null;
   runtime: number | null;
+  vote_average?: number | null;
+  vote_count?: number;
   genres: Genre[];
   'watch/providers': {
     results: Record<string, RegionalAvailability>;
