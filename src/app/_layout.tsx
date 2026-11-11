@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { theme } from '../theme';
+import { AppDataProvider } from '../state/AppData';
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -17,7 +18,9 @@ export default function RootLayout() {
     <View style={styles.screen}>
       <StatusBar style="light" />
       {loaded ? (
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.paper } }} />
+        <AppDataProvider>
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.paper } }} />
+        </AppDataProvider>
       ) : <ActivityIndicator color={theme.colors.accent} accessibilityLabel="Watchever" />}
     </View>
   );

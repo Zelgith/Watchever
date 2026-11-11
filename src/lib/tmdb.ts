@@ -19,11 +19,14 @@ export type RegionalAvailability = {
 
 export type MovieDetails = {
   id: number;
+  adult?: boolean;
   title: string;
   poster_path: string | null;
   release_date: string;
   overview: string | null;
   runtime: number | null;
+  vote_average?: number | null;
+  vote_count?: number;
   genres: Genre[];
   'watch/providers': {
     results: Record<string, RegionalAvailability>;
@@ -31,6 +34,14 @@ export type MovieDetails = {
 };
 
 export const WATCH_REGION = 'PL';
+
+export class TmdbError extends Error {
+  readonly status: number;
+  constructor(status: number) {
+    super('Nie udało się pobrać danych z bazy filmów.');
+    this.status = status;
+  }
+}
 
 export async function requestTmdb<T>(
   path: string,
@@ -60,7 +71,7 @@ export async function requestTmdb<T>(
       headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
       signal: controller.signal,
     });
-    if (!response.ok) throw new Error('Nie udało się pobrać danych z bazy filmów.');
+    if (!response.ok) throw new TmdbError(response.status);
     return await response.json() as T;
   } finally {
     clearTimeout(timeout);

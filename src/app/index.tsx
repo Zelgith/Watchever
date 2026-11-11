@@ -1,22 +1,28 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '../components/AppHeader';
 import { ActionButton } from '../components/ActionButton';
 import { Choice } from '../components/Choice';
 import { Icon } from '../components/Icon';
+import { FilterField } from '../components/FilterField';
+import { preferencesFromFields } from '../lib/preferences';
+import type { FilterFields } from '../lib/preferences';
 import { getGenres, getWatchProviders } from '../lib/tmdb';
 import type { Genre, WatchProvider } from '../lib/tmdb';
 import { theme } from '../theme';
+import { useAppData } from '../state/AppData';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { preferences, updatePreferences, saveError, retrySave } = useAppData();
+  const selectedProviders = preferences.providerIds;
+  const selectedGenres = preferences.genreIds;
+  const fields: FilterFields = preferences;
   const [providers, setProviders] = useState<WatchProvider[] | null>(null);
-  const [selectedProviders, setSelectedProviders] = useState<number[]>([]);
   const [genres, setGenres] = useState<Genre[] | null>(null);
-  const [selectedGenres, setSelectedGenres] = useState<number[]>([]);
   const [expanded, setExpanded] = useState(false);
   const [providerQuery, setProviderQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
@@ -25,6 +31,7 @@ export default function HomeScreen() {
   const [disclosureFocused, setDisclosureFocused] = useState(false);
   const [disclosureHovered, setDisclosureHovered] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const [filterError, setFilterError] = useState<string | null>(null);
 
   const canRecommend = selectedProviders.length > 0 && providers !== null && genres !== null;
   const normalizedQuery = providerQuery.trim().toLocaleLowerCase('pl');
@@ -52,15 +59,32 @@ export default function HomeScreen() {
   }, [loadAttempt]);
 
   function toggleProvider(id: number) {
-    setSelectedProviders((selected) =>
-      selected.includes(id) ? selected.filter((current) => current !== id) : [...selected, id],
-    );
+    updatePreferences({ providerIds: selectedProviders.includes(id)
+      ? selectedProviders.filter((current) => current !== id) : [...selectedProviders, id] });
   }
 
   function toggleGenre(id: number) {
-    setSelectedGenres((selected) =>
-      selected.includes(id) ? selected.filter((current) => current !== id) : [...selected, id],
-    );
+    updatePreferences({ genreIds: selectedGenres.includes(id)
+      ? selectedGenres.filter((current) => current !== id) : [...selectedGenres, id] });
+  }
+
+  function changeField(name: keyof FilterFields, value: string) {
+    updatePreferences({ [name]: value });
+    setFilterError(null);
+  }
+
+  function findMovies() {
+    try {
+      preferencesFromFields(selectedProviders, selectedGenres, fields);
+      setFilterError(null);
+      Keyboard.dismiss();
+      router.push({ pathname: '/recommendation', params: {
+        providers: selectedProviders.join(','), genres: selectedGenres.join(','),
+        yearFrom: fields.yearFrom, yearTo: fields.yearTo, maxRuntime: fields.maxRuntime,
+      } });
+    } catch (error) {
+      setFilterError(error instanceof Error ? error.message : 'Sprawdź filtry.');
+    }
   }
 
   const providerChoices = visibleProviders?.map((provider) => (
@@ -78,6 +102,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
+      <KeyboardAvoidingView style={styles.screen} behavior="height">
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
@@ -160,7 +185,7 @@ export default function HomeScreen() {
           <Text style={styles.sectionTitle} accessibilityRole="header">Gatunki</Text>
           {genres ? (
             <View style={styles.genres}>
-              <Choice testID="genre-any" label="Dowolne" selected={selectedGenres.length === 0} onPress={() => setSelectedGenres([])} />
+              <Choice testID="genre-any" label="Dowolne" selected={selectedGenres.length === 0} onPress={() => updatePreferences({ genreIds: [] })} />
               {genres.map((genre) => (
                 <Choice key={genre.id} testID={`genre-${genre.id}`} label={genre.name}
                   selected={selectedGenres.includes(genre.id)} onPress={() => toggleGenre(genre.id)} />
@@ -177,19 +202,30 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle} accessibilityRole="header">Rok i czas</Text>
+          <View style={styles.filterRow}>
+            <FilterField testID="year-from" label="Rok od" value={fields.yearFrom} onChangeText={(value) => changeField('yearFrom', value)} />
+            <FilterField testID="year-to" label="Rok do" value={fields.yearTo} onChangeText={(value) => changeField('yearTo', value)} />
+          </View>
+          <FilterField testID="max-runtime" label="Maks. czas (min)" value={fields.maxRuntime} onChangeText={(value) => changeField('maxRuntime', value)} />
+        </View>
       </ScrollView>
       <View style={styles.actions}>
+        {saveError ? <>
+          <Text accessibilityRole="alert" style={styles.message}>Nie udało się zapisać ustawień.</Text>
+          <ActionButton testID="retry-save" label="Ponów zapis" secondary compact onPress={retrySave} />
+        </> : null}
+        {filterError ? <Text testID="filter-error" accessibilityRole="alert" style={styles.message}>{filterError}</Text> : null}
         <ActionButton
           testID="find-movie"
           label="Znajdź filmy"
           icon="arrow"
           disabled={!canRecommend}
-          onPress={() => router.push({
-            pathname: '/recommendation',
-            params: { providers: selectedProviders.join(','), genres: selectedGenres.join(',') },
-          })}
+          onPress={findMovies}
         />
       </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -206,6 +242,7 @@ const styles = StyleSheet.create({
   providerItem: { width: 88 },
   providerRow: { width: '100%' },
   genres: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.space.sm },
+  filterRow: { flexDirection: 'row', gap: theme.space.md },
   message: { fontFamily: theme.fonts.body, fontSize: theme.text.body, lineHeight: 24, color: theme.colors.secondaryInk },
   searchField: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: theme.space.md, borderWidth: 1, borderColor: theme.colors.muted, paddingHorizontal: theme.space.md },
   search: { flex: 1, minWidth: 0, minHeight: 50, fontFamily: theme.fonts.body, fontSize: theme.text.body, color: theme.colors.ink, paddingVertical: theme.space.sm },
