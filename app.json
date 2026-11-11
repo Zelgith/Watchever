@@ -11,7 +11,8 @@
       "expo-router",
       "expo-status-bar",
       "expo-image",
-      "expo-font"
+      "expo-font",
+      "expo-sqlite"
     ],
     "android": {
       "package": "com.watchever.app"
