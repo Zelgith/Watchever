@@ -26,9 +26,10 @@ export function MovieCard({ movie, providerIds, onDismiss, style }: Props) {
   const [hovered, setHovered] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
-  const providers = movie['watch/providers'].results[WATCH_REGION]?.flatrate?.filter(
+  const providers = movie['watch/providers']?.results?.[WATCH_REGION]?.flatrate?.filter(
     (provider) => providerIds.includes(provider.provider_id),
   ) ?? [];
+  const genres = movie.genres ?? [];
   const year = releaseYear(movie.release_date);
   const rating = movie.vote_count && movie.vote_count > 0 && movie.vote_average !== null &&
     movie.vote_average !== undefined && Number.isFinite(movie.vote_average) && movie.vote_average >= 0 && movie.vote_average <= 10
@@ -109,7 +110,7 @@ export function MovieCard({ movie, providerIds, onDismiss, style }: Props) {
                     <Text style={styles.text}>{year ?? 'Rok nieznany'}</Text>
                     <Text testID={`movie-runtime-${movie.id}`} style={styles.text}>{movie.runtime !== null && movie.runtime > 0 ? `${movie.runtime} min` : 'Czas nieznany'}</Text>
                   </View>
-                  <Text style={styles.caption}>{movie.genres.length > 0 ? movie.genres.map((genre) => genre.name).join(', ') : 'Gatunek nieznany'}</Text>
+                  <Text style={styles.caption}>{genres.length > 0 ? genres.map((genre) => genre.name).join(', ') : 'Gatunek nieznany'}</Text>
                   <Text testID={`movie-rating-${movie.id}`} style={styles.caption}>{rating ? `TMDB ${rating}/10` : 'Brak ocen TMDB'}</Text>
                   {providers.map((provider) => (
                     <View key={provider.provider_id} style={styles.provider}>

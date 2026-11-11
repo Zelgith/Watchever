@@ -51,7 +51,7 @@ export default function RecommendationScreen() {
         const selected = selectionIds(providers);
         setProviderIds(selected);
         const recommendations = await getRecommendations(
-          preferencesFromFields(selected, selectionIds(genres), { yearFrom: yearFrom ?? '', yearTo: yearTo ?? '', maxRuntime: maxRuntime ?? '' }), controller.signal,
+          preferencesFromFields(selected, selectionIds(genres), { yearFrom: yearFrom ?? '', yearTo: yearTo ?? '', maxRuntime: maxRuntime ?? '' }), controller.signal, historyRef.current,
         );
         if (!controller.signal.aborted) {
           const unwatched = recommendations.filter((movie) => !historyRef.current.some((entry) => entry.id === movie.id));

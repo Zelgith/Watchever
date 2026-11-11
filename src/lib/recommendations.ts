@@ -1,7 +1,8 @@
-import { getMovieDetails, requestTmdb, WATCH_REGION } from './tmdb.ts';
+import { getMovieDetails, requestTmdb, TmdbError, WATCH_REGION } from './tmdb.ts';
 import type { MovieDetails } from './tmdb.ts';
 import { releaseYear, validatePreferences } from './preferences.ts';
 import type { MoviePreferences } from './preferences.ts';
+import type { WatchedMovie } from './storage.ts';
 
 export type { MoviePreferences } from './preferences.ts';
 
@@ -29,7 +30,7 @@ export function matchesPreferences(movie: MovieDetails, preferences: MoviePrefer
   );
   const hasGenre =
     preferences.genreIds.length === 0 ||
-    movie.genres.some((genre) => preferences.genreIds.includes(genre.id));
+    (movie.genres ?? []).some((genre) => preferences.genreIds.includes(genre.id));
 
   const year = releaseYear(movie.release_date);
   const hasYear = (preferences.yearFrom === undefined || (year !== undefined && year >= preferences.yearFrom)) &&
@@ -37,28 +38,89 @@ export function matchesPreferences(movie: MovieDetails, preferences: MoviePrefer
   const hasRuntime = preferences.maxRuntime === undefined ||
     (movie.runtime !== null && Number.isFinite(movie.runtime) && movie.runtime > 0 && movie.runtime <= preferences.maxRuntime);
 
-  return hasSubscription && hasGenre && hasYear && hasRuntime;
+  return movie.adult !== true && hasSubscription && hasGenre && hasYear && hasRuntime;
+}
+
+type Candidate = { id: number; genre_ids?: number[]; release_date?: string; adult?: boolean };
+type MoviePage = { results: Candidate[]; total_pages?: number };
+
+function genreAffinities(history: readonly WatchedMovie[]): Map<number, number> {
+  const totals = new Map<number, { sum: number; count: number }>();
+  for (const movie of history) {
+    if (movie.rating === null) continue;
+    for (const id of new Set(movie.genres.map((genre) => genre.id))) {
+      const previous = totals.get(id) ?? { sum: 0, count: 0 };
+      totals.set(id, { sum: previous.sum + movie.rating - 3, count: previous.count + 1 });
+    }
+  }
+  return new Map([...totals].map(([id, { sum, count }]) => [id, sum / (count + 1)]));
 }
 
 export async function getRecommendations(
   preferences: MoviePreferences,
   signal?: AbortSignal,
+  history: readonly WatchedMovie[] = [],
 ): Promise<MovieDetails[]> {
-  const response = await requestTmdb<{ results: { id: number }[] }>(
-    '/discover/movie',
-    discoveryParameters(preferences),
-    signal,
-  );
+  const parameters = discoveryParameters(preferences);
+  const watchedIds = new Set(history.map((movie) => movie.id));
+  const affinities = genreAffinities(history);
+  const seeds = history.filter((movie) => movie.rating !== null && movie.rating >= 4)
+    .sort((a, b) => b.rating! - a.rating! || b.watchedAt.localeCompare(a.watchedAt)).slice(0, 2);
+  const [firstPage, relatedPages] = await Promise.all([
+    requestTmdb<MoviePage>('/discover/movie', { ...parameters, page: '1' }, signal),
+    Promise.all(seeds.map(async (movie) => {
+      try { return await requestTmdb<MoviePage>(`/movie/${movie.id}/recommendations`, {}, signal); }
+      catch (error) {
+        if (signal?.aborted) throw error;
+        return { results: [] };
+      }
+    })),
+  ]);
+  const relatedBonus = new Map<number, number>();
+  relatedPages.forEach((page, index) => {
+    for (const candidate of page.results) {
+      relatedBonus.set(candidate.id, (relatedBonus.get(candidate.id) ?? 0) + (seeds[index].rating! - 3) / 2);
+    }
+  });
 
-  const candidateIds = [...new Set(response.results.map((candidate) => candidate.id))].slice(0, 20);
-  const movies: MovieDetails[] = [];
-
-  for (let index = 0; index < candidateIds.length; index += 4) {
-    const candidates = await Promise.all(
-      candidateIds.slice(index, index + 4).map((id) => getMovieDetails(id, signal)),
-    );
-    movies.push(...candidates.filter((movie) => matchesPreferences(movie, preferences)));
+  function score(id: number, genreIds: readonly number[]) {
+    const affinity = genreIds.reduce((sum, genre) => sum + (affinities.get(genre) ?? 0), 0) / Math.max(1, genreIds.length);
+    return affinity + (relatedBonus.get(id) ?? 0);
   }
 
-  return movies;
+  function couldMatch(candidate: Candidate) {
+    if (candidate.adult === true) return false;
+    if (preferences.genreIds.length && candidate.genre_ids && !candidate.genre_ids.some((id) => preferences.genreIds.includes(id))) return false;
+    const year = releaseYear(candidate.release_date);
+    if (candidate.release_date !== undefined && (
+      (preferences.yearFrom !== undefined && (year === undefined || year < preferences.yearFrom)) ||
+      (preferences.yearTo !== undefined && (year === undefined || year > preferences.yearTo))
+    )) return false;
+    return true;
+  }
+
+  const checkedIds = new Set(watchedIds);
+  const movies: MovieDetails[] = [];
+  const maxPages = Math.min(5, firstPage.total_pages ?? 1);
+  for (let page = 1; page <= Math.max(1, maxPages) && movies.length < 20; page++) {
+    const response = page === 1 ? firstPage : await requestTmdb<MoviePage>('/discover/movie', { ...parameters, page: String(page) }, signal);
+    const candidates = (page === 1 ? [...response.results, ...relatedPages.flatMap((related) => related.results)] : response.results)
+      .filter((candidate) => {
+        if (!Number.isSafeInteger(candidate.id) || candidate.id <= 0 || checkedIds.has(candidate.id)) return false;
+        checkedIds.add(candidate.id);
+        return couldMatch(candidate);
+      })
+      .sort((a, b) => score(b.id, b.genre_ids ?? []) - score(a.id, a.genre_ids ?? []));
+    for (let index = 0; index < candidates.length && movies.length < 20; index += 4) {
+      const details = await Promise.all(candidates.slice(index, index + 4).map(async ({ id }) => {
+        try { return await getMovieDetails(id, signal); }
+        catch (error) {
+          if (error instanceof TmdbError && error.status === 404) return null;
+          throw error;
+        }
+      }));
+      movies.push(...details.filter((movie): movie is MovieDetails => movie !== null && !watchedIds.has(movie.id) && matchesPreferences(movie, preferences)));
+    }
+  }
+  return movies.sort((a, b) => score(b.id, (b.genres ?? []).map((genre) => genre.id)) - score(a.id, (a.genres ?? []).map((genre) => genre.id))).slice(0, 20);
 }

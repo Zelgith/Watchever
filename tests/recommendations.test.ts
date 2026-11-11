@@ -68,6 +68,12 @@ test('nieznany rok lub czas wyklucza film tylko przy aktywnym filtrze', () => {
   assert.equal(matchesPreferences({ ...movie, release_date: '2020-01-01' }, { providerIds: [8], genreIds: [], yearFrom: 2020 }), true);
 });
 
+test('brak gatunków nie powoduje błędu i nie spełnia aktywnego filtra gatunków', () => {
+  const incomplete = { ...movie, genres: undefined } as unknown as MovieDetails;
+  assert.equal(matchesPreferences(incomplete, { providerIds: [8], genreIds: [] }), true);
+  assert.equal(matchesPreferences(incomplete, { providerIds: [8], genreIds: [28] }), false);
+});
+
 test('nie rozpoczyna wyszukiwania bez platformy', () => {
   assert.throws(() => discoveryParameters({ providerIds: [], genreIds: [] }));
 });

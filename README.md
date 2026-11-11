@@ -8,9 +8,11 @@ Użytkownik po uruchomieniu aplikacji ustala preferencje dotyczące rekomendacji
 
 Następnie użytkownikowi wyświetlana jest lista rekomendowanych filmów. Każda propozycja spełnia wybrane preferencje i jest dostępna w abonamencie na co najmniej jednej wskazanej platformie w Polsce.
 
+Preferencje i historia oglądania są zapisywane lokalnie w SQLite. Film można oznaczyć jako obejrzany i opcjonalnie ocenić w skali 1–5. Rekomendacje pomijają obejrzane tytuły i uwzględniają oceny oraz filmy podobne do wysoko ocenionych, zachowując wszystkie ustawione filtry. Wyszukiwanie sprawdza do pięciu stron TMDB i zwraca do 20 propozycji.
+
 ### Funkcjonalności opcjonalne
 
-Aplikacja może otrzymać możliwość importu plików `.csv` z danymi na temat obejrzanych przez użytkownika filmów oraz ich ocen. Dzięki temu można by dodatkowo zaimplementować sugestie bazujące na dotychczasowej historii użytkownika. Ułatwiłoby to również generowanie rekomendacji filmów, których użytkownik jeszcze nie widział.
+Import historii i ocen z plików `.csv` pozostaje funkcją opcjonalną.
 
 ## Wymagania funkcjonalne
 
@@ -21,7 +23,7 @@ Aplikacja może otrzymać możliwość importu plików `.csv` z danymi na temat 
 5. Aplikacja wyświetla podstawowe dane na temat wybranego filmu.
 6. Aplikacja umożliwia odrzucenie rekomendacji i wygenerowanie kolejnej.
 7. **(Opcjonalnie)** Aplikacja umożliwia import plików `.csv` z danymi użytkownika na temat obejrzanych filmów oraz ocen.
-8. **(Opcjonalnie)** Aplikacja ustala preferencje użytkownika na podstawie wystawionych przez niego ocen filmów.
+8. Aplikacja uwzględnia historię oglądania i wystawione przez użytkownika oceny przy doborze filmów.
 
 ## Wymagania niefunkcjonalne
 

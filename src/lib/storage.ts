@@ -64,7 +64,7 @@ export async function loadHistory(db: Database): Promise<WatchedMovie[]> {
 export async function saveWatchedMovie(db: Database, movie: MovieDetails): Promise<void> {
   await db.runAsync(`INSERT INTO watched_movies (id, title, poster_path, release_date, genres, watched_at)
     VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING`,
-  movie.id, movie.title, movie.poster_path, movie.release_date, JSON.stringify(movie.genres), new Date().toISOString());
+  movie.id, movie.title, movie.poster_path ?? null, movie.release_date ?? '', JSON.stringify(movie.genres ?? []), new Date().toISOString());
 }
 
 export async function saveRating(db: Database, movieId: number, rating: number | null): Promise<void> {
