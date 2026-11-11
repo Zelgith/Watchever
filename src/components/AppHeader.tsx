@@ -2,14 +2,14 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { theme } from '../theme';
-import { ActionButton } from './ActionButton';
+import { IconButton } from './IconButton';
 
 export function AppHeader() {
   const router = useRouter();
   return (
     <View style={styles.header}>
       <Text style={styles.brand} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>Watchever</Text>
-      <ActionButton testID="open-history" label="Obejrzane" secondary compact onPress={() => router.push('/history')} />
+      <IconButton testID="open-history" icon="profile" label="Profil — obejrzane filmy" onPress={() => router.push('/history')} />
     </View>
   );
 }

@@ -5,6 +5,7 @@ import { theme } from '../theme';
 const paths = {
   check: 'm5 12 4 4L19 6',
   plus: 'M12 5v14M5 12h14',
+  profile: 'M20 21a8 8 0 0 0-16 0M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0',
   close: 'm6 6 12 12M6 18 18 6',
   down: 'm6 9 6 6 6-6',
   up: 'm6 15 6-6 6 6',
