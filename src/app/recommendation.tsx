@@ -10,6 +10,7 @@ import { getRecommendations } from '../lib/recommendations';
 import { preferencesFromFields } from '../lib/preferences';
 import type { MovieDetails } from '../lib/tmdb';
 import { theme } from '../theme';
+import { useAppData } from '../state/AppData';
 
 function selectionIds(value: string | string[] | undefined): number[] {
   if (value === undefined || value === '') return [];
@@ -21,6 +22,9 @@ function selectionIds(value: string | string[] | undefined): number[] {
 
 export default function RecommendationScreen() {
   const router = useRouter();
+  const { history } = useAppData();
+  const historyRef = useRef(history);
+  useEffect(() => { historyRef.current = history; }, [history]);
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const movieWidth = Math.floor((Math.min(width - insets.left - insets.right, theme.contentWidth) - theme.space.xl * 2 - theme.space.lg) / 2);
@@ -50,8 +54,9 @@ export default function RecommendationScreen() {
           preferencesFromFields(selected, selectionIds(genres), { yearFrom: yearFrom ?? '', yearTo: yearTo ?? '', maxRuntime: maxRuntime ?? '' }), controller.signal,
         );
         if (!controller.signal.aborted) {
-          setMovies(recommendations);
-          setLoadedCount(recommendations.length);
+          const unwatched = recommendations.filter((movie) => !historyRef.current.some((entry) => entry.id === movie.id));
+          setMovies(unwatched);
+          setLoadedCount(unwatched.length);
         }
       } catch {
         if (!controller.signal.aborted) setFailed(true);
