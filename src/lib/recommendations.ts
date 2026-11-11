@@ -6,6 +6,8 @@ import type { WatchedMovie } from './storage.ts';
 
 export type { MoviePreferences } from './preferences.ts';
 
+const NEUTRAL_RATING = 2.5;
+
 export function discoveryParameters(preferences: MoviePreferences): Record<string, string> {
   validatePreferences(preferences);
 
@@ -50,7 +52,7 @@ function genreAffinities(history: readonly WatchedMovie[]): Map<number, number> 
     if (movie.rating === null) continue;
     for (const id of new Set(movie.genres.map((genre) => genre.id))) {
       const previous = totals.get(id) ?? { sum: 0, count: 0 };
-      totals.set(id, { sum: previous.sum + movie.rating - 3, count: previous.count + 1 });
+      totals.set(id, { sum: previous.sum + movie.rating - NEUTRAL_RATING, count: previous.count + 1 });
     }
   }
   return new Map([...totals].map(([id, { sum, count }]) => [id, sum / (count + 1)]));
@@ -65,8 +67,8 @@ export async function getRecommendations(
   const parameters = discoveryParameters(preferences);
   const skippedIds = new Set([...history.map((movie) => movie.id), ...excludedIds]);
   const affinities = genreAffinities(history);
-  const seeds = history.filter((movie) => movie.rating === null || movie.rating >= 3.5)
-    .sort((a, b) => (b.rating ?? 3) - (a.rating ?? 3) || b.watchedAt.localeCompare(a.watchedAt)).slice(0, 2);
+  const seeds = history.filter((movie) => movie.rating === null || movie.rating > NEUTRAL_RATING)
+    .sort((a, b) => (b.rating ?? NEUTRAL_RATING) - (a.rating ?? NEUTRAL_RATING) || b.watchedAt.localeCompare(a.watchedAt)).slice(0, 2);
   const [firstPage, relatedPages] = await Promise.all([
     requestTmdb<MoviePage>('/discover/movie', { ...parameters, page: '1' }, signal),
     Promise.all(seeds.map(async (movie) => {
@@ -81,7 +83,7 @@ export async function getRecommendations(
   relatedPages.forEach((page, index) => {
     for (const candidate of page.results) {
       const rating = seeds[index].rating;
-      relatedBonus.set(candidate.id, (relatedBonus.get(candidate.id) ?? 0) + (rating === null ? 0.25 : (rating - 3) / 2));
+      relatedBonus.set(candidate.id, (relatedBonus.get(candidate.id) ?? 0) + (rating === null ? 0.25 : (rating - NEUTRAL_RATING) / 2));
     }
   });
 

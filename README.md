@@ -8,7 +8,7 @@ Użytkownik po uruchomieniu aplikacji ustala preferencje dotyczące rekomendacji
 
 Następnie użytkownikowi wyświetlana jest lista rekomendowanych filmów. Każda propozycja spełnia wybrane preferencje i jest dostępna w abonamencie na co najmniej jednej wskazanej platformie w Polsce.
 
-Preferencje i lista „Obejrzane” są zapisywane lokalnie w SQLite. Filmy można dodawać z wyszukiwarki tytułów lub rekomendacji i oceniać od 0,5 do 5 gwiazdek, co pół gwiazdki. Rekomendacje pomijają obejrzane tytuły i uwzględniają oceny oraz podobne filmy, zachowując wszystkie ustawione filtry. Odświeżenie pobiera do 20 innych propozycji, bez filmów z bieżącej listy. Przy błędzie lub braku innych dopasowań dotychczasowa lista pozostaje dostępna. Wyszukiwanie sprawdza do pięciu stron wyników TMDB.
+Preferencje i lista „Obejrzane” są zapisywane lokalnie w SQLite. Filmy można dodawać z wyszukiwarki tytułów lub rekomendacji i oceniać od 0,5 do 5 gwiazdek, co pół gwiazdki. Ocena 2,5 jest neutralna; wyższe wzmacniają dopasowanie, a niższe je osłabiają. Rekomendacje pomijają obejrzane tytuły i uwzględniają oceny oraz podobne filmy, zachowując wszystkie ustawione filtry. Odświeżenie pobiera do 20 innych propozycji, bez filmów z bieżącej listy. Przy błędzie lub braku innych dopasowań dotychczasowa lista pozostaje dostępna. Wyszukiwanie sprawdza do pięciu stron wyników TMDB.
 
 ### Funkcjonalności opcjonalne
 
