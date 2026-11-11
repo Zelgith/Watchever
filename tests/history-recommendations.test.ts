@@ -152,7 +152,7 @@ test('sama zamiana ocen odwraca ranking tego samego katalogu przy tej samej hist
   const preferences = { providerIds: [8], genreIds: [], yearFrom: 2010, yearTo: 2010, maxRuntime: 100 };
   const actionLiked = [watched(1, 5, 28), watched(2, 0.5, 35)];
   const comedyLiked = [watched(1, 0.5, 28), watched(2, 5, 35)];
-  const neutral = [watched(1, 3, 28), watched(2, 3, 35)];
+  const neutral = [watched(1, 2.5, 28), watched(2, 2.5, 35)];
   const first = await getRecommendations(preferences, undefined, actionLiked);
   const reversed = await getRecommendations(preferences, undefined, comedyLiked);
   const unchanged = await getRecommendations(preferences, undefined, neutral);
@@ -163,7 +163,23 @@ test('sama zamiana ocen odwraca ranking tego samego katalogu przy tej samej hist
   assert.ok([...first, ...reversed, ...unchanged].every((film) => matchesPreferences(film, preferences)));
 });
 
-test('połówkowa ocena powyżej trzech włącza podobieństwo filmu, a niska nie promuje podobnych', async (context) => {
+test('ocena 2,5 jest neutralna, a 3 promuje gatunek słabiej niż wyższa ocena', async (context) => {
+  const catalogue = [movie(3, 35), movie(4, 28), movie(5, 99)];
+  mockApi(context, (url) => {
+    if (url.pathname.endsWith('/discover/movie')) return Response.json({ results: catalogue.map((film) => ({ id: film.id, genre_ids: film.genres.map((genre) => genre.id) })) });
+    if (url.pathname.endsWith('/recommendations')) return Response.json({ results: [] });
+    return Response.json(catalogue.find(({ id }) => id === Number(url.pathname.split('/').at(-1))));
+  });
+  const preferences = { providerIds: [8], genreIds: [] };
+  for (const [rating, expected] of [[2, [3, 5, 4]], [2.5, [3, 4, 5]], [3, [4, 3, 5]]] as const) {
+    const result = await getRecommendations(preferences, undefined, [watched(1, rating, 28), watched(2, 2.5, 35)]);
+    assert.deepEqual(result.map(({ id }) => id), expected, `Ocena ${rating}`);
+  }
+  const strongerComedy = await getRecommendations(preferences, undefined, [watched(1, 3, 28), watched(2, 3.5, 35)]);
+  assert.deepEqual(strongerComedy.map(({ id }) => id), [3, 4, 5]);
+});
+
+test('ocena 3 włącza podobieństwo filmu, a neutralna i niska nie promują podobnych', async (context) => {
   let relatedRequests = 0;
   mockApi(context, (url) => {
     if (url.pathname.endsWith('/discover/movie')) return Response.json({ results: [{ id: 2 }, { id: 3 }] });
@@ -171,11 +187,10 @@ test('połówkowa ocena powyżej trzech włącza podobieństwo filmu, a niska ni
     return Response.json(movie(Number(url.pathname.split('/').at(-1)), 35));
   });
   const preferences = { providerIds: [8], genreIds: [] };
-  const liked = await getRecommendations(preferences, undefined, [watched(1, 3.5, 28)]);
-  assert.deepEqual(liked.map(({ id }) => id), [3, 2]);
-  assert.equal(relatedRequests, 1);
-  relatedRequests = 0;
-  const disliked = await getRecommendations(preferences, undefined, [watched(1, 0.5, 28)]);
-  assert.deepEqual(disliked.map(({ id }) => id), [2, 3]);
-  assert.equal(relatedRequests, 0);
+  for (const rating of [0.5, 2, 2.5, 3, 3.5, 5]) {
+    relatedRequests = 0;
+    const result = await getRecommendations(preferences, undefined, [watched(1, rating, 28)]);
+    assert.deepEqual(result.map(({ id }) => id), rating > 2.5 ? [3, 2] : [2, 3], `Ocena ${rating}`);
+    assert.equal(relatedRequests, rating > 2.5 ? 1 : 0, `Ocena ${rating}`);
+  }
 });
