@@ -38,25 +38,36 @@ export default function RecommendationScreen() {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [noNewMovies, setNoNewMovies] = useState(false);
+  const excludedIds = useRef<number[]>([]);
+  const dismissedIds = useRef(new Set<number>());
 
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
     setFailed(false);
-    setMovies([]);
-    setLoadedCount(0);
+    setNoNewMovies(false);
+    if (excludedIds.current.length === 0) {
+      setMovies([]);
+      setLoadedCount(0);
+    }
 
     async function findMovies() {
       try {
         const selected = selectionIds(providers);
         setProviderIds(selected);
         const recommendations = await getRecommendations(
-          preferencesFromFields(selected, selectionIds(genres), { yearFrom: yearFrom ?? '', yearTo: yearTo ?? '', maxRuntime: maxRuntime ?? '' }), controller.signal, historyRef.current,
+          preferencesFromFields(selected, selectionIds(genres), { yearFrom: yearFrom ?? '', yearTo: yearTo ?? '', maxRuntime: maxRuntime ?? '' }), controller.signal, historyRef.current, excludedIds.current,
         );
         if (!controller.signal.aborted) {
           const unwatched = recommendations.filter((movie) => !historyRef.current.some((entry) => entry.id === movie.id));
-          setMovies(unwatched);
-          setLoadedCount(unwatched.length);
+          if (unwatched.length > 0 || excludedIds.current.length === 0) {
+            setMovies(unwatched);
+            setLoadedCount(unwatched.length);
+            list.current?.scrollToOffset({ offset: 0, animated: false });
+          } else {
+            setNoNewMovies(true);
+          }
         }
       } catch {
         if (!controller.signal.aborted) setFailed(true);
@@ -69,13 +80,22 @@ export default function RecommendationScreen() {
     return () => controller.abort();
   }, [providers, genres, yearFrom, yearTo, maxRuntime, attempt]);
 
+  function refresh() {
+    if (loading) return;
+    excludedIds.current = [...new Set([...dismissedIds.current, ...movies.map((movie) => movie.id)])];
+    list.current?.scrollToOffset({ offset: 0, animated: false });
+    setLoading(true);
+    setAttempt((current) => current + 1);
+  }
+
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.toolbar}>
         <View style={styles.titleGroup}>
           <Text accessibilityRole="header" style={styles.title}>Filmy</Text>
-          {!loading && !failed ? <Text testID="movie-count" accessibilityLabel={`Liczba filmów: ${movies.length}`} style={styles.count}>{movies.length}</Text> : null}
+          {movies.length > 0 || (!loading && !failed) ? <Text testID="movie-count" accessibilityLabel={`Liczba filmów: ${movies.length}`} style={styles.count}>{movies.length}</Text> : null}
         </View>
+        <IconButton testID="refresh-movies" label="Odśwież filmy" icon="refresh" loading={loading} onPress={refresh} />
         <IconButton testID="change-filters-button" label="Wróć" icon="back"
           onPress={() => router.canGoBack() ? router.back() : router.replace('/')} />
       </View>
@@ -93,11 +113,20 @@ export default function RecommendationScreen() {
             movie={item}
             providerIds={providerIds}
             onDismiss={() => {
+              dismissedIds.current.add(item.id);
               setMovies((current) => current.filter((movie) => movie.id !== item.id));
               list.current?.scrollToOffset({ offset: 0, animated: false });
             }}
           />
         )}
+        ListHeaderComponent={movies.length > 0 && (failed || noNewMovies) ? (
+          <View style={styles.status}>
+            <Text testID={failed ? 'refresh-error' : 'refresh-empty'} accessibilityRole={failed ? 'alert' : undefined} style={styles.message}>
+              {failed ? 'Nie udało się odświeżyć filmów.' : 'Brak innych filmów dla tych filtrów.'}
+            </Text>
+            {failed ? <ActionButton testID="retry-refresh" label="Spróbuj ponownie" secondary onPress={() => setAttempt((current) => current + 1)} /> : null}
+          </View>
+        ) : undefined}
         ListEmptyComponent={(
           loading ? (
             <View style={styles.row} accessibilityRole="progressbar" accessibilityLabel="Wyszukiwanie filmów">
@@ -136,6 +165,7 @@ const styles = StyleSheet.create({
   content: { flexGrow: 1, width: '100%', maxWidth: theme.contentWidth, alignSelf: 'center', paddingHorizontal: theme.space.xl, paddingBottom: theme.space.xl },
   row: { flexDirection: 'row', gap: theme.space.lg },
   empty: { gap: theme.space.lg, paddingTop: theme.space.xxxl },
+  status: { gap: theme.space.md, paddingBottom: theme.space.xl },
   message: { fontFamily: theme.fonts.body, fontSize: theme.text.body, lineHeight: 26, color: theme.colors.secondaryInk },
   skeleton: { flex: 1, gap: theme.space.md },
   skeletonPoster: { width: '100%', aspectRatio: 2 / 3, backgroundColor: theme.colors.surface },

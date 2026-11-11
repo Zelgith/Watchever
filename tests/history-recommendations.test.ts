@@ -29,6 +29,7 @@ function mockApi(context: TestContext, respond: (url: URL) => Response) {
 test('obejrzana pierwsza strona prowadzi do następnej bez pobierania obejrzanych i bez duplikatów', async (context) => {
   const detailIds: number[] = [];
   mockApi(context, (url) => {
+    if (url.pathname.endsWith('/recommendations')) return Response.json({ results: [] });
     if (url.pathname.endsWith('/discover/movie')) return Response.json({ total_pages: 2,
       results: (url.searchParams.get('page') === '1' ? [1, 2] : [2, 3, 3, 4]).map((id) => ({ id })) });
     const id = Number(url.pathname.split('/').at(-1));
@@ -54,7 +55,7 @@ test('oceny i podobne filmy zmieniają kolejność, zachowując wszystkie twarde
     assert.ok(detail);
     return Response.json(detail);
   });
-  const history = [watched(1, 5, 28), watched(2, 1, 99)];
+  const history = [watched(1, 4.5, 28), watched(2, 1, 99)];
   const preferences = { providerIds: [8], genreIds: [], yearFrom: 2000, yearTo: 2020, maxRuntime: 120 };
   const result = await getRecommendations(preferences, undefined, history);
   assert.deepEqual(result.map(({ id }) => id), [300, 400, 200, 100]);
@@ -78,6 +79,7 @@ test('awaria dodatkowych podobnych filmów nie blokuje podstawowych rekomendacji
 test('poszukiwanie niewidzianych filmów ma limit pięciu stron', async (context) => {
   const pages: number[] = [];
   mockApi(context, (url) => {
+    if (url.pathname.endsWith('/recommendations')) return Response.json({ results: [] });
     assert.ok(url.pathname.endsWith('/discover/movie'), 'Nie pobieraj szczegółów obejrzanych filmów');
     const page = Number(url.searchParams.get('page'));
     pages.push(page);
@@ -86,6 +88,45 @@ test('poszukiwanie niewidzianych filmów ma limit pięciu stron', async (context
   const result = await getRecommendations({ providerIds: [8], genreIds: [] }, undefined, [1, 2, 3, 4, 5].map((id) => watched(id)));
   assert.deepEqual(result, []);
   assert.deepEqual(pages, [1, 2, 3, 4, 5]);
+});
+
+test('podobne filmy z historii bez ocen również wpływają na dobór', async (context) => {
+  mockApi(context, (url) => {
+    if (url.pathname.endsWith('/discover/movie')) return Response.json({ results: [{ id: 2 }] });
+    if (url.pathname.endsWith('/recommendations')) return Response.json({ results: [{ id: 3 }] });
+    return Response.json(movie(Number(url.pathname.split('/').at(-1))));
+  });
+  const result = await getRecommendations({ providerIds: [8], genreIds: [] }, undefined, [watched(1)]);
+  assert.deepEqual(result.map(({ id }) => id), [3, 2]);
+});
+
+test('odświeżenie zwraca inną dwudziestkę i nie pobiera ponownie szczegółów obecnych filmów', async (context) => {
+  const detailIds: number[] = [];
+  mockApi(context, (url) => {
+    if (url.pathname.endsWith('/discover/movie')) {
+      const page = Number(url.searchParams.get('page'));
+      return Response.json({ total_pages: 3, results: Array.from({ length: 20 }, (_, index) => ({ id: (page - 1) * 20 + index + 1 })) });
+    }
+    const id = Number(url.pathname.split('/').at(-1));
+    detailIds.push(id);
+    return Response.json(movie(id));
+  });
+  const preferences = { providerIds: [8], genreIds: [28], yearFrom: 2010, yearTo: 2010, maxRuntime: 100 };
+  const first = await getRecommendations(preferences);
+  detailIds.length = 0;
+  const second = await getRecommendations(preferences, undefined, [], first.map(({ id }) => id));
+  assert.equal(first.length, 20);
+  assert.equal(second.length, 20);
+  assert.ok(second.every((film) => !first.some(({ id }) => id === film.id) && matchesPreferences(film, preferences)));
+  assert.deepEqual(detailIds, Array.from({ length: 20 }, (_, index) => index + 21));
+});
+
+test('brak innych dopasowań nie przywraca wykluczonych filmów', async (context) => {
+  mockApi(context, (url) => {
+    assert.ok(url.pathname.endsWith('/discover/movie'));
+    return Response.json({ total_pages: 1, results: [{ id: 1 }, { id: 2 }] });
+  });
+  assert.deepEqual(await getRecommendations({ providerIds: [8], genreIds: [] }, undefined, [], [1, 2]), []);
 });
 
 test('usunięty z TMDB film jest pomijany, a błąd komunikacji nadal jest błędem', async (context) => {

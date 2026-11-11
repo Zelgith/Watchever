@@ -60,12 +60,13 @@ export async function getRecommendations(
   preferences: MoviePreferences,
   signal?: AbortSignal,
   history: readonly WatchedMovie[] = [],
+  excludedIds: readonly number[] = [],
 ): Promise<MovieDetails[]> {
   const parameters = discoveryParameters(preferences);
-  const watchedIds = new Set(history.map((movie) => movie.id));
+  const skippedIds = new Set([...history.map((movie) => movie.id), ...excludedIds]);
   const affinities = genreAffinities(history);
-  const seeds = history.filter((movie) => movie.rating !== null && movie.rating >= 4)
-    .sort((a, b) => b.rating! - a.rating! || b.watchedAt.localeCompare(a.watchedAt)).slice(0, 2);
+  const seeds = history.filter((movie) => movie.rating === null || movie.rating >= 3.5)
+    .sort((a, b) => (b.rating ?? 3) - (a.rating ?? 3) || b.watchedAt.localeCompare(a.watchedAt)).slice(0, 2);
   const [firstPage, relatedPages] = await Promise.all([
     requestTmdb<MoviePage>('/discover/movie', { ...parameters, page: '1' }, signal),
     Promise.all(seeds.map(async (movie) => {
@@ -79,7 +80,8 @@ export async function getRecommendations(
   const relatedBonus = new Map<number, number>();
   relatedPages.forEach((page, index) => {
     for (const candidate of page.results) {
-      relatedBonus.set(candidate.id, (relatedBonus.get(candidate.id) ?? 0) + (seeds[index].rating! - 3) / 2);
+      const rating = seeds[index].rating;
+      relatedBonus.set(candidate.id, (relatedBonus.get(candidate.id) ?? 0) + (rating === null ? 0.25 : (rating - 3) / 2));
     }
   });
 
@@ -99,7 +101,7 @@ export async function getRecommendations(
     return true;
   }
 
-  const checkedIds = new Set(watchedIds);
+  const checkedIds = new Set(skippedIds);
   const movies: MovieDetails[] = [];
   const maxPages = Math.min(5, firstPage.total_pages ?? 1);
   for (let page = 1; page <= Math.max(1, maxPages) && movies.length < 20; page++) {
@@ -119,7 +121,7 @@ export async function getRecommendations(
           throw error;
         }
       }));
-      movies.push(...details.filter((movie): movie is MovieDetails => movie !== null && !watchedIds.has(movie.id) && matchesPreferences(movie, preferences)));
+      movies.push(...details.filter((movie): movie is MovieDetails => movie !== null && !skippedIds.has(movie.id) && matchesPreferences(movie, preferences)));
     }
   }
   return movies.sort((a, b) => score(b.id, (b.genres ?? []).map((genre) => genre.id)) - score(a.id, (a.genres ?? []).map((genre) => genre.id))).slice(0, 20);
