@@ -4,6 +4,7 @@ import { theme } from '../theme';
 
 const paths = {
   check: 'm5 12 4 4L19 6',
+  plus: 'M12 5v14M5 12h14',
   close: 'm6 6 12 12M6 18 18 6',
   down: 'm6 9 6 6 6-6',
   up: 'm6 15 6-6 6 6',
@@ -12,6 +13,7 @@ const paths = {
   search: 'M21 21l-4.3-4.3M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0',
   play: 'm9 5 11 7-11 7V5Z',
   history: 'M3 11a9 9 0 1 1 2.6 7.4M3 4v7h7M12 7v5l3 2',
+  refresh: 'M20 7V3l-3 3a8 8 0 0 0-13 6M4 17v4l3-3a8 8 0 0 0 13-6M20 3h-5M4 21h5',
   star: 'm12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z',
 } as const;
 
