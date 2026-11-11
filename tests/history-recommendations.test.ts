@@ -139,3 +139,43 @@ test('usunięty z TMDB film jest pomijany, a błąd komunikacji nadal jest błę
   status = 503;
   await assert.rejects(getRecommendations({ providerIds: [8], genreIds: [] }));
 });
+
+test('sama zamiana ocen odwraca ranking tego samego katalogu przy tej samej historii i filtrach', async (context) => {
+  const catalogue = [movie(3, 35), movie(4, 28), movie(5, 99)];
+  mockApi(context, (url) => {
+    if (url.pathname.endsWith('/discover/movie')) return Response.json({ results: catalogue.map((film) => ({ id: film.id, genre_ids: film.genres.map((genre) => genre.id) })) });
+    if (url.pathname.endsWith('/recommendations')) return Response.json({ results: [] });
+    const film = catalogue.find(({ id }) => id === Number(url.pathname.split('/').at(-1)));
+    assert.ok(film);
+    return Response.json(film);
+  });
+  const preferences = { providerIds: [8], genreIds: [], yearFrom: 2010, yearTo: 2010, maxRuntime: 100 };
+  const actionLiked = [watched(1, 5, 28), watched(2, 0.5, 35)];
+  const comedyLiked = [watched(1, 0.5, 28), watched(2, 5, 35)];
+  const neutral = [watched(1, 3, 28), watched(2, 3, 35)];
+  const first = await getRecommendations(preferences, undefined, actionLiked);
+  const reversed = await getRecommendations(preferences, undefined, comedyLiked);
+  const unchanged = await getRecommendations(preferences, undefined, neutral);
+  assert.deepEqual(first.map(({ id }) => id), [4, 5, 3]);
+  assert.deepEqual(reversed.map(({ id }) => id), [3, 5, 4]);
+  assert.deepEqual(unchanged.map(({ id }) => id), [3, 4, 5]);
+  assert.deepEqual([...first.map(({ id }) => id)].sort(), [...reversed.map(({ id }) => id)].sort());
+  assert.ok([...first, ...reversed, ...unchanged].every((film) => matchesPreferences(film, preferences)));
+});
+
+test('połówkowa ocena powyżej trzech włącza podobieństwo filmu, a niska nie promuje podobnych', async (context) => {
+  let relatedRequests = 0;
+  mockApi(context, (url) => {
+    if (url.pathname.endsWith('/discover/movie')) return Response.json({ results: [{ id: 2 }, { id: 3 }] });
+    if (url.pathname.endsWith('/recommendations')) { relatedRequests++; return Response.json({ results: [{ id: 3 }] }); }
+    return Response.json(movie(Number(url.pathname.split('/').at(-1)), 35));
+  });
+  const preferences = { providerIds: [8], genreIds: [] };
+  const liked = await getRecommendations(preferences, undefined, [watched(1, 3.5, 28)]);
+  assert.deepEqual(liked.map(({ id }) => id), [3, 2]);
+  assert.equal(relatedRequests, 1);
+  relatedRequests = 0;
+  const disliked = await getRecommendations(preferences, undefined, [watched(1, 0.5, 28)]);
+  assert.deepEqual(disliked.map(({ id }) => id), [2, 3]);
+  assert.equal(relatedRequests, 0);
+});
