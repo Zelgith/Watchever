@@ -53,3 +53,30 @@ test('błąd odczytu nie zamienia uszkodzonego zapisu w puste preferencje', asyn
   await assert.rejects(loadPreferences(db));
   assert.equal((await db.getFirstAsync<{ value: string }>('SELECT value FROM preferences'))?.value, '{broken');
 });
+
+test('migracja starych ocen zachowuje dane i umożliwia połówki, także po ponownym otwarciu', async (context) => {
+  const directory = mkdtempSync(join(tmpdir(), 'watchever-migration-'));
+  const path = join(directory, 'test.db');
+  let { native, db } = connection(path);
+  context.after(() => { native.close(); rmSync(directory, { recursive: true }); });
+  native.exec(`CREATE TABLE preferences (id INTEGER PRIMARY KEY, value TEXT NOT NULL);
+    CREATE TABLE watched_movies (id INTEGER PRIMARY KEY, title TEXT NOT NULL, poster_path TEXT,
+      release_date TEXT NOT NULL, genres TEXT NOT NULL, watched_at TEXT NOT NULL,
+      rating INTEGER CHECK (rating IS NULL OR (rating BETWEEN 1 AND 5 AND rating = CAST(rating AS INTEGER))));`);
+  const preferences = { providerIds: [8], genreIds: [], yearFrom: '2000', yearTo: '', maxRuntime: '120' };
+  await savePreferences(db, preferences);
+  native.prepare('INSERT INTO watched_movies VALUES (?, ?, ?, ?, ?, ?, ?)').run(42, 'Stary film', null, '2000-01-01', '[]', '2026-11-11T12:00:00Z', 4);
+  const previous = await loadHistory(db);
+  await initializeDatabase(db);
+  assert.deepEqual(await loadHistory(db), previous);
+  assert.deepEqual(await loadPreferences(db), preferences);
+  await saveRating(db, 42, 4.5);
+  native.close();
+  ({ native, db } = connection(path));
+  await initializeDatabase(db);
+  assert.equal((await loadHistory(db))[0].rating, 4.5);
+  await saveRating(db, 42, 0.5);
+  assert.equal((await loadHistory(db))[0].rating, 0.5);
+  await assert.rejects(saveRating(db, 42, 4.25));
+  await assert.rejects(db.runAsync('UPDATE watched_movies SET rating = 4.25 WHERE id = 42'));
+});

@@ -33,6 +33,9 @@ export type MovieDetails = {
   };
 };
 
+export type MovieSummary = Pick<MovieDetails, 'id' | 'title' | 'poster_path' | 'release_date'>;
+export type MovieSearchPage = { results: MovieSummary[]; total_pages: number };
+
 export const WATCH_REGION = 'PL';
 
 export class TmdbError extends Error {
@@ -108,4 +111,11 @@ export function getMovieDetails(movieId: number, signal?: AbortSignal): Promise<
     { append_to_response: 'watch/providers' },
     signal,
   );
+}
+
+export async function searchMovies(query: string, page = 1, signal?: AbortSignal): Promise<MovieSearchPage> {
+  const title = query.trim();
+  if (!title) return { results: [], total_pages: 0 };
+  if (!Number.isInteger(page) || page < 1 || page > 500) throw new Error('Nieprawidłowa strona wyszukiwania.');
+  return requestTmdb<MovieSearchPage>('/search/movie', { query: title, include_adult: 'false', page: String(page) }, signal);
 }
