@@ -21,19 +21,33 @@ export const emptyPreferences: PreferenceDraft = {
 type Database = Pick<SQLiteDatabase, 'execAsync' | 'runAsync' | 'getFirstAsync' | 'getAllAsync'>;
 
 export async function initializeDatabase(db: Database): Promise<void> {
-  await db.execAsync(`
-    PRAGMA journal_mode = WAL;
-    CREATE TABLE IF NOT EXISTS preferences (id INTEGER PRIMARY KEY CHECK (id = 1), value TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS watched_movies (
+  await db.execAsync('PRAGMA journal_mode = WAL;');
+  const version = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
+  if ((version?.user_version ?? 0) >= 1) return;
+  const columns = `
       id INTEGER PRIMARY KEY,
       title TEXT NOT NULL,
       poster_path TEXT,
       release_date TEXT NOT NULL,
       genres TEXT NOT NULL,
       watched_at TEXT NOT NULL,
-      rating INTEGER CHECK (rating IS NULL OR (rating BETWEEN 1 AND 5 AND rating = CAST(rating AS INTEGER)))
-    );
-  `);
+      rating REAL CHECK (rating IS NULL OR (rating BETWEEN 0.5 AND 5 AND rating * 2 = CAST(rating * 2 AS INTEGER)))`;
+  try {
+    await db.execAsync(`
+      BEGIN IMMEDIATE;
+      CREATE TABLE IF NOT EXISTS preferences (id INTEGER PRIMARY KEY CHECK (id = 1), value TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS watched_movies (${columns});
+      CREATE TABLE watched_movies_v1 (${columns});
+      INSERT INTO watched_movies_v1 SELECT id, title, poster_path, release_date, genres, watched_at, rating FROM watched_movies;
+      DROP TABLE watched_movies;
+      ALTER TABLE watched_movies_v1 RENAME TO watched_movies;
+      PRAGMA user_version = 1;
+      COMMIT;
+    `);
+  } catch (error) {
+    await db.execAsync('ROLLBACK;');
+    throw error;
+  }
 }
 
 export async function loadPreferences(db: Database): Promise<PreferenceDraft> {
@@ -68,7 +82,7 @@ export async function saveWatchedMovie(db: Database, movie: MovieDetails): Promi
 }
 
 export async function saveRating(db: Database, movieId: number, rating: number | null): Promise<void> {
-  if (rating !== null && (!Number.isInteger(rating) || rating < 1 || rating > 5)) throw new Error('Ocena musi być liczbą od 1 do 5.');
+  if (rating !== null && (!Number.isInteger(rating * 2) || rating < 0.5 || rating > 5)) throw new Error('Ocena musi być od 0,5 do 5, co pół gwiazdki.');
   await db.runAsync('UPDATE watched_movies SET rating = ? WHERE id = ?', rating, movieId);
 }
 

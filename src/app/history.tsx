@@ -33,7 +33,7 @@ export default function HistoryScreen() {
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.toolbar}>
-        <Text accessibilityRole="header" style={styles.heading}>Historia</Text>
+        <Text accessibilityRole="header" style={styles.heading}>Obejrzane</Text>
         <Text testID="history-count" style={styles.caption} accessibilityLabel={`Obejrzane filmy: ${history.length}`}>{history.length}</Text>
         <IconButton testID="history-back" icon="back" label="Wróć" onPress={() => router.canGoBack() ? router.back() : router.replace('/')} />
       </View>
@@ -41,7 +41,7 @@ export default function HistoryScreen() {
         ListEmptyComponent={<Text testID="history-empty" style={styles.text}>Brak obejrzanych filmów.</Text>}
         renderItem={({ item }) => (
           <Pressable testID={`history-movie-${item.id}`} accessibilityRole="button"
-            accessibilityLabel={`${item.title}, ${item.rating === null ? 'bez oceny' : `ocena ${item.rating} z 5`}`}
+            accessibilityLabel={`${item.title}, ${item.rating === null ? 'bez oceny' : `ocena ${item.rating.toLocaleString('pl-PL')} z 5`}`}
             accessibilityHint="Zmień ocenę lub usuń film z historii"
             onPress={() => { setSelectedId(item.id); setError(false); }}
             onFocus={() => setFocusedId(item.id)} onBlur={() => setFocusedId(null)}
@@ -55,7 +55,7 @@ export default function HistoryScreen() {
               <Text style={styles.caption}>{new Date(item.watchedAt).toLocaleDateString('pl-PL')}</Text>
             </View>
             <View style={styles.score}><Icon name="star" filled={item.rating !== null} color={item.rating !== null ? theme.colors.accent : theme.colors.muted} />
-              <Text testID={`history-rating-${item.id}`} style={styles.caption}>{item.rating === null ? '—' : `${item.rating}/5`}</Text>
+              <Text testID={`history-rating-${item.id}`} style={styles.caption}>{item.rating === null ? '—' : `${item.rating.toLocaleString('pl-PL')}/5`}</Text>
             </View>
           </Pressable>
         )}
