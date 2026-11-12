@@ -17,7 +17,7 @@ export const theme = {
     transparent: '#00000000',
   },
   fonts: { body: 'Barlow', medium: 'BarlowMedium', display: 'SofiaCondensed' },
-  text: { caption: 14, body: 16, section: 20, heading: 28, title: 36, wordmark: 48 },
+  text: { caption: 14, body: 16, section: 20, wordmark: 48 },
   space: { xxs: 2, xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32, xxxl: 48 },
   radius: 0,
   contentWidth: 640,
