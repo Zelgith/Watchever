@@ -88,6 +88,11 @@ export default function RecommendationScreen() {
     setAttempt((current) => current + 1);
   }
 
+  function goBack() {
+    if (router.canGoBack()) router.back();
+    else router.replace('/');
+  }
+
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.toolbar}>
@@ -96,8 +101,7 @@ export default function RecommendationScreen() {
           {movies.length > 0 || (!loading && !failed) ? <Text testID="movie-count" accessibilityLabel={`Liczba filmów: ${movies.length}`} style={styles.count}>{movies.length}</Text> : null}
         </View>
         <IconButton testID="refresh-movies" label="Odśwież filmy" icon="refresh" loading={loading} onPress={refresh} />
-        <IconButton testID="change-filters-button" label="Wróć" icon="back"
-          onPress={() => router.canGoBack() ? router.back() : router.replace('/')} />
+        <IconButton testID="change-filters-button" label="Wróć" icon="back" onPress={goBack} />
       </View>
       <FlatList
         ref={list}
@@ -115,7 +119,6 @@ export default function RecommendationScreen() {
             onDismiss={() => {
               dismissedIds.current.add(item.id);
               setMovies((current) => current.filter((movie) => movie.id !== item.id));
-              list.current?.scrollToOffset({ offset: 0, animated: false });
             }}
           />
         )}
@@ -143,11 +146,17 @@ export default function RecommendationScreen() {
               <Text testID="recommendations-error" style={styles.message} accessibilityRole="alert">Nie udało się pobrać filmów.</Text>
               <ActionButton testID="retry-movies" label="Spróbuj ponownie" onPress={() => setAttempt((current) => current + 1)} secondary />
             </View>
+          ) : loadedCount > 0 && !noNewMovies ? (
+            <View style={styles.empty}>
+              <Text testID="recommendations-empty" style={styles.message}>Lista jest pusta.</Text>
+              <ActionButton testID="next-movies" label="Nowe propozycje" icon="refresh" onPress={refresh} />
+            </View>
           ) : (
             <View style={styles.empty}>
               <Text testID="recommendations-empty" style={styles.message}>
-                {loadedCount > 0 ? 'To wszystkie propozycje. Zmień filtry, by szukać dalej.' : 'Brak filmów dla tych filtrów.'}
+                {noNewMovies ? 'Brak innych filmów dla tych filtrów.' : 'Brak filmów dla tych filtrów.'}
               </Text>
+              <ActionButton testID="change-filters" label="Zmień filtry" secondary onPress={goBack} />
             </View>
           )
         )}
