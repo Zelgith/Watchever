@@ -33,7 +33,6 @@ export default function HomeScreen() {
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [filterError, setFilterError] = useState<string | null>(null);
 
-  const canRecommend = selectedProviders.length > 0 && providers !== null && genres !== null;
   const normalizedQuery = providerQuery.trim().toLocaleLowerCase('pl');
   const visibleProviders = providers?.filter((provider, index) =>
     expanded
@@ -59,6 +58,7 @@ export default function HomeScreen() {
   }, [loadAttempt]);
 
   function toggleProvider(id: number) {
+    setFilterError(null);
     updatePreferences({ providerIds: selectedProviders.includes(id)
       ? selectedProviders.filter((current) => current !== id) : [...selectedProviders, id] });
   }
@@ -205,10 +205,10 @@ export default function HomeScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle} accessibilityRole="header">Rok i czas</Text>
           <View style={styles.filterRow}>
-            <FilterField testID="year-from" label="Rok od" value={fields.yearFrom} onChangeText={(value) => changeField('yearFrom', value)} />
-            <FilterField testID="year-to" label="Rok do" value={fields.yearTo} onChangeText={(value) => changeField('yearTo', value)} />
+            <FilterField testID="year-from" label="Rok od" maxLength={4} value={fields.yearFrom} onChangeText={(value) => changeField('yearFrom', value)} />
+            <FilterField testID="year-to" label="Rok do" maxLength={4} value={fields.yearTo} onChangeText={(value) => changeField('yearTo', value)} />
           </View>
-          <FilterField testID="max-runtime" label="Maks. czas (min)" value={fields.maxRuntime} onChangeText={(value) => changeField('maxRuntime', value)} />
+          <FilterField testID="max-runtime" label="Maks. czas (min)" maxLength={3} value={fields.maxRuntime} onChangeText={(value) => changeField('maxRuntime', value)} />
         </View>
       </ScrollView>
       <View style={styles.actions}>
@@ -221,7 +221,6 @@ export default function HomeScreen() {
           testID="find-movie"
           label="Znajdź filmy"
           icon="arrow"
-          disabled={!canRecommend}
           onPress={findMovies}
         />
       </View>

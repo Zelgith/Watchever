@@ -3,15 +3,15 @@ import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { theme } from '../theme';
 
-export function FilterField({ label, value, onChangeText, testID }: {
-  label: string; value: string; onChangeText: (value: string) => void; testID: string;
+export function FilterField({ label, value, onChangeText, testID, maxLength }: {
+  label: string; value: string; onChangeText: (value: string) => void; testID: string; maxLength: number;
 }) {
   const [focused, setFocused] = useState(false);
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
       <TextInput testID={testID} accessibilityLabel={label} value={value} onChangeText={onChangeText}
-        placeholder="Dowolny" placeholderTextColor={theme.colors.muted} keyboardType="number-pad"
+        placeholder="Dowolny" placeholderTextColor={theme.colors.muted} keyboardType="number-pad" maxLength={maxLength}
         selectionColor={theme.colors.accent} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
         style={[styles.input, focused && styles.focused]} />
     </View>
