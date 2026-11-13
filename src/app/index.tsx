@@ -187,7 +187,7 @@ export default function HomeScreen() {
             <View style={styles.genres}>
               <Choice testID="genre-any" label="Dowolne" selected={selectedGenres.length === 0} onPress={() => updatePreferences({ genreIds: [] })} />
               {genres.map((genre) => (
-                <Choice key={genre.id} testID={`genre-${genre.id}`} label={genre.name}
+                <Choice key={genre.id} testID={`genre-${genre.id}`} label={genre.name.charAt(0).toLocaleUpperCase('pl') + genre.name.slice(1)}
                   selected={selectedGenres.includes(genre.id)} onPress={() => toggleGenre(genre.id)} />
               ))}
             </View>
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
   disclosureText: { fontFamily: theme.fonts.body, fontSize: theme.text.caption, lineHeight: 20, color: theme.colors.secondaryInk },
   pressed: { backgroundColor: theme.colors.selection },
   focused: { outlineColor: theme.colors.focus, outlineWidth: 2, outlineOffset: 2 },
-  actions: { paddingHorizontal: theme.space.xl, paddingTop: theme.space.md, paddingBottom: theme.space.lg, borderTopWidth: 1, borderTopColor: theme.colors.rule, width: '100%', maxWidth: theme.contentWidth, alignSelf: 'center' },
+  actions: { gap: theme.space.sm, paddingHorizontal: theme.space.xl, paddingTop: theme.space.md, paddingBottom: theme.space.lg, borderTopWidth: 1, borderTopColor: theme.colors.rule, width: '100%', maxWidth: theme.contentWidth, alignSelf: 'center' },
   skeletonProvider: { width: 88, minHeight: 112, alignItems: 'center', justifyContent: 'center', gap: theme.space.md },
   skeletonLogo: { width: 56, height: 56, backgroundColor: theme.colors.surface },
   skeletonLabel: { width: '80%', height: 12, backgroundColor: theme.colors.rule },
