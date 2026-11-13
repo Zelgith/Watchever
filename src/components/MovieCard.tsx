@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -19,7 +19,6 @@ type Props = { movie: MovieDetails; providerIds: readonly number[]; onDismiss: (
 export function MovieCard({ movie, providerIds, onDismiss, style }: Props) {
   const { history, markWatched, rateMovie } = useAppData();
   const watched = history.find((entry) => entry.id === movie.id);
-  const { fontScale } = useWindowDimensions();
   const [posterFailed, setPosterFailed] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -77,7 +76,7 @@ export function MovieCard({ movie, providerIds, onDismiss, style }: Props) {
           </View>
         )}
         <View style={styles.summary}>
-          <Text testID={`movie-title-${movie.id}`} numberOfLines={2} style={[styles.title, { minHeight: 48 * fontScale }]}>{movie.title}</Text>
+          <Text testID={`movie-title-${movie.id}`} numberOfLines={2} style={styles.title}>{movie.title}</Text>
           <View style={styles.metadata}>
             <Text testID={`movie-release-${movie.id}`} style={styles.caption}>{year ?? 'Rok nieznany'}</Text>
             {movie.runtime !== null && movie.runtime > 0 ? <Text style={styles.caption}>{movie.runtime} min</Text> : null}
@@ -126,10 +125,12 @@ export function MovieCard({ movie, providerIds, onDismiss, style }: Props) {
                   <View style={styles.provider}><Icon name="check" color={theme.colors.accent} /><Text style={styles.text}>Obejrzane</Text></View>
                   <RatingInput value={watched.rating} onChange={(rating) => rateMovie(movie.id, rating)} />
                 </View>
-              ) : <>
-                <ActionButton testID={`watch-movie-${movie.id}`} label="Obejrzane" icon="check" disabled={saving} onPress={() => void watch()} />
-                <ActionButton testID={`dismiss-movie-${movie.id}`} label="Nie interesuje mnie" icon="close" secondary disabled={saving} onPress={onDismiss} />
-              </>}
+              ) : (
+                <View collapsable={false} style={styles.actions}>
+                  <ActionButton testID={`watch-movie-${movie.id}`} label="Obejrzane" icon="check" disabled={saving} onPress={() => void watch()} />
+                  <ActionButton testID={`dismiss-movie-${movie.id}`} label="Nie interesuje mnie" icon="close" secondary disabled={saving} onPress={onDismiss} />
+                </View>
+              )}
               {saveError ? <Text style={styles.text} accessibilityRole="alert">Nie udało się zapisać filmu w historii.</Text> : null}
             </ScrollView>
           </SafeAreaView>
@@ -147,7 +148,7 @@ const styles = StyleSheet.create({
   poster: { width: '100%', aspectRatio: 2 / 3, backgroundColor: theme.colors.surface },
   placeholder: { alignItems: 'center', justifyContent: 'center', gap: theme.space.md },
   summary: { gap: theme.space.sm },
-  title: { minHeight: 48, minWidth: 0, fontFamily: theme.fonts.medium, fontSize: theme.text.body, lineHeight: 24, color: theme.colors.ink },
+  title: { minWidth: 0, fontFamily: theme.fonts.medium, fontSize: theme.text.body, lineHeight: 24, color: theme.colors.ink },
   metadata: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.space.md },
   caption: { fontFamily: theme.fonts.body, fontSize: theme.text.caption, lineHeight: 20, color: theme.colors.muted },
   logos: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.space.sm },
@@ -161,6 +162,7 @@ const styles = StyleSheet.create({
   detailPoster: { width: 88, aspectRatio: 2 / 3, backgroundColor: theme.colors.subtle },
   facts: { flex: 1, gap: theme.space.md },
   watched: { gap: theme.space.md },
+  actions: { gap: theme.space.xs },
   provider: { flexDirection: 'row', alignItems: 'center', gap: theme.space.sm },
   providerName: { flexShrink: 1, fontFamily: theme.fonts.body, fontSize: theme.text.caption, lineHeight: 20, color: theme.colors.secondaryInk },
   text: { fontFamily: theme.fonts.body, fontSize: theme.text.body, lineHeight: 26, color: theme.colors.secondaryInk },
