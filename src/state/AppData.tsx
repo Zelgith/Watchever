@@ -12,7 +12,7 @@ import { theme } from '../theme';
 
 type AppData = {
   preferences: PreferenceDraft;
-  updatePreferences: (patch: Partial<PreferenceDraft>) => void;
+  updatePreferences: (patch: Partial<PreferenceDraft> | ((current: PreferenceDraft) => Partial<PreferenceDraft>)) => void;
   saveError: boolean;
   retrySave: () => void;
   history: WatchedMovie[];
@@ -54,9 +54,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     return () => { active = false; };
   }, [attempt]);
 
-  const updatePreferences = useCallback((patch: Partial<PreferenceDraft>) => {
+  const updatePreferences = useCallback((patch: Partial<PreferenceDraft> | ((current: PreferenceDraft) => Partial<PreferenceDraft>)) => {
     if (!db) return;
-    const next = { ...preferencesRef.current, ...patch };
+    const next = { ...preferencesRef.current, ...(typeof patch === 'function' ? patch(preferencesRef.current) : patch) };
     preferencesRef.current = next;
     setPreferences(next);
     saveQueue.current = saveQueue.current.then(async () => {
@@ -78,20 +78,26 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     </View>
   );
 
+  function writeHistory(operation: () => Promise<void>): Promise<void> {
+    const pending = saveQueue.current.then(operation);
+    saveQueue.current = pending.catch(() => {});
+    return pending;
+  }
+
   return (
     <DataContext value={{ preferences, updatePreferences, saveError, retrySave: () => updatePreferences({}), history,
-      markWatched: async (movie) => {
+      markWatched: (movie) => writeHistory(async () => {
         await saveWatchedMovie(db, movie);
         setHistory(await loadHistory(db));
-      },
-      rateMovie: async (id, rating) => {
+      }),
+      rateMovie: (id, rating) => writeHistory(async () => {
         await saveRating(db, id, rating);
         setHistory((current) => current.map((movie) => movie.id === id ? { ...movie, rating } : movie));
-      },
-      removeFromHistory: async (id) => {
+      }),
+      removeFromHistory: (id) => writeHistory(async () => {
         await removeWatchedMovie(db, id);
         setHistory((current) => current.filter((movie) => movie.id !== id));
-      },
+      }),
     }}>{children}</DataContext>
   );
 }

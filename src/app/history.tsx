@@ -5,11 +5,12 @@ import { ActivityIndicator, FlatList, Keyboard, Modal, Pressable, ScrollView, St
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ActionButton } from '../components/ActionButton';
+import { DataSources } from '../components/DataSources';
 import { Icon } from '../components/Icon';
 import { IconButton } from '../components/IconButton';
 import { RatingInput } from '../components/RatingInput';
 import { releaseYear } from '../lib/preferences';
-import { getMovieDetails, searchMovies } from '../lib/tmdb';
+import { getMovieDetails, searchMovies, tmdbErrorMessage } from '../lib/tmdb';
 import type { MovieSummary } from '../lib/tmdb';
 import { useAppData } from '../state/AppData';
 import { theme } from '../theme';
@@ -18,6 +19,7 @@ export default function HistoryScreen() {
   const router = useRouter();
   const { history, markWatched, rateMovie, removeFromHistory } = useAppData();
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [sourcesOpen, setSourcesOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   const [focusedId, setFocusedId] = useState<number | null>(null);
@@ -26,12 +28,15 @@ export default function HistoryScreen() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [searchError, setSearchError] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [searchFocused, setSearchFocused] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [addingId, setAddingId] = useState<number | null>(null);
-  const [addError, setAddError] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
   const addRequest = useRef<AbortController | null>(null);
+  const searchRequest = useRef<AbortController | null>(null);
+  const searchPending = useRef(false);
+  const removing = useRef(false);
   const searching = query.trim().length > 0;
   const watchedById = new Map(history.map((movie) => [movie.id, movie]));
   const selected = history.find((movie) => movie.id === selectedId);
@@ -39,17 +44,22 @@ export default function HistoryScreen() {
   useEffect(() => {
     if (!query.trim()) return;
     const controller = new AbortController();
+    searchRequest.current = controller;
+    searchPending.current = true;
     setSearchLoading(true);
-    setSearchError(false);
+    setSearchError(null);
     const timeout = setTimeout(() => {
       searchMovies(query, page, controller.signal).then((response) => {
         if (controller.signal.aborted) return;
         setResults((current) => [...new Map([...(page === 1 ? [] : current), ...response.results].map((movie) => [movie.id, movie])).values()]);
         setTotalPages(Math.min(500, response.total_pages));
-      }).catch(() => {
-        if (!controller.signal.aborted) setSearchError(true);
+      }).catch((error) => {
+        if (!controller.signal.aborted) setSearchError(tmdbErrorMessage(error, 'Nie udało się wyszukać filmów.'));
       }).finally(() => {
-        if (!controller.signal.aborted) setSearchLoading(false);
+        if (!controller.signal.aborted) {
+          searchPending.current = false;
+          setSearchLoading(false);
+        }
       });
     }, 350);
     return () => { clearTimeout(timeout); controller.abort(); };
@@ -58,13 +68,23 @@ export default function HistoryScreen() {
   useEffect(() => () => addRequest.current?.abort(), []);
 
   function changeQuery(value: string) {
+    searchRequest.current?.abort();
+    searchPending.current = value.trim().length > 0;
     setQuery(value);
     setResults([]);
     setPage(1);
     setTotalPages(0);
     setSearchLoading(value.trim().length > 0);
-    setSearchError(false);
-    setAddError(false);
+    setSearchError(null);
+    setAddError(null);
+  }
+
+  function searchAgain(nextPage: boolean) {
+    if (searchPending.current) return;
+    searchPending.current = true;
+    setSearchLoading(true);
+    if (nextPage) setPage((current) => current + 1);
+    else setAttempt((current) => current + 1);
   }
 
   async function add(id: number) {
@@ -72,7 +92,7 @@ export default function HistoryScreen() {
     const controller = new AbortController();
     addRequest.current = controller;
     setAddingId(id);
-    setAddError(false);
+    setAddError(null);
     Keyboard.dismiss();
     try {
       const movie = await getMovieDetails(id, controller.signal);
@@ -82,8 +102,8 @@ export default function HistoryScreen() {
       changeQuery('');
       setSelectedId(id);
       setError(false);
-    } catch {
-      if (!controller.signal.aborted) setAddError(true);
+    } catch (error) {
+      if (!controller.signal.aborted) setAddError(tmdbErrorMessage(error, 'Nie udało się dodać filmu. Spróbuj ponownie.'));
     } finally {
       addRequest.current = null;
       setAddingId(null);
@@ -91,19 +111,21 @@ export default function HistoryScreen() {
   }
 
   async function remove(id: number) {
-    if (busy) return;
+    if (removing.current) return;
+    removing.current = true;
     setBusy(true);
     setError(false);
     try { await removeFromHistory(id); setSelectedId(null); }
     catch { setError(true); }
-    finally { setBusy(false); }
+    finally { removing.current = false; setBusy(false); }
   }
 
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.toolbar}>
-        <Text accessibilityRole="header" style={styles.heading}>Obejrzane</Text>
+        <Text accessibilityRole="header" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} style={styles.heading}>Obejrzane</Text>
         <Text testID="history-count" style={styles.caption} accessibilityLabel={`Obejrzane filmy: ${history.length}`}>{history.length}</Text>
+        <IconButton testID="open-data-sources" icon="info" label="Źródła danych" onPress={() => setSourcesOpen(true)} />
         <IconButton testID="history-back" icon="back" label="Wróć" onPress={() => router.canGoBack() ? router.back() : router.replace('/')} />
       </View>
       <View style={styles.searchArea}>
@@ -115,18 +137,18 @@ export default function HistoryScreen() {
             onFocus={() => setSearchFocused(true)} onBlur={() => setSearchFocused(false)} selectionColor={theme.colors.accent} style={styles.searchInput} />
           {query ? <IconButton testID="clear-watched-search" icon="close" label="Wyczyść wyszukiwanie" disabled={addingId !== null} onPress={() => changeQuery('')} /> : null}
         </View>
-        {addError ? <Text style={styles.text} accessibilityRole="alert">Nie udało się dodać filmu. Spróbuj ponownie.</Text> : null}
+        {addError ? <Text testID="watched-add-error" style={styles.text} accessibilityRole="alert">{addError}</Text> : null}
       </View>
       <FlatList testID="history-list" data={searching ? results : history} keyExtractor={(movie) => String(movie.id)} contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
         ListEmptyComponent={searching ? (
           searchLoading ? <ActivityIndicator color={theme.colors.accent} accessibilityLabel="Wyszukiwanie filmów" /> :
-            <Text testID="watched-search-empty" style={styles.text}>{searchError ? 'Nie udało się wyszukać filmów.' : 'Brak filmów o tym tytule.'}</Text>
+            <Text testID="watched-search-empty" style={styles.text} accessibilityRole={searchError ? 'alert' : undefined}>{searchError ?? 'Brak filmów o tym tytule.'}</Text>
         ) : <Text testID="history-empty" style={styles.text}>Brak obejrzanych filmów.</Text>}
         ListFooterComponent={searching ? (
           searchLoading && results.length > 0 ? <ActivityIndicator color={theme.colors.accent} accessibilityLabel="Wyszukiwanie filmów" /> :
-            searchError ? <ActionButton testID="retry-watched-search" label="Spróbuj ponownie" secondary onPress={() => setAttempt((current) => current + 1)} /> :
-              !searchLoading && page < totalPages ? <ActionButton testID="more-watched-search" label="Więcej wyników" secondary onPress={() => setPage((current) => current + 1)} /> : undefined
+            searchError ? <ActionButton testID="retry-watched-search" label="Spróbuj ponownie" secondary onPress={() => searchAgain(false)} /> :
+              !searchLoading && page < totalPages ? <ActionButton testID="more-watched-search" label="Więcej wyników" secondary onPress={() => searchAgain(true)} /> : undefined
         ) : undefined}
         renderItem={({ item }) => {
           const entry = watchedById.get(item.id);
@@ -169,6 +191,7 @@ export default function HistoryScreen() {
           </SafeAreaView>
         </View>
       </Modal>
+      <DataSources visible={sourcesOpen} onClose={() => setSourcesOpen(false)} />
     </SafeAreaView>
   );
 }

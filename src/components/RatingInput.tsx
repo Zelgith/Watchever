@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { theme } from '../theme';
@@ -11,13 +11,15 @@ export function RatingInput({ value, onChange, disabled = false }: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   const [focused, setFocused] = useState<number | null>(null);
+  const pending = useRef(false);
   async function change(rating: number | null) {
-    if (busy || disabled) return;
+    if (pending.current || disabled) return;
+    pending.current = true;
     setBusy(true);
     setError(false);
     try { await onChange(rating); }
     catch { setError(true); }
-    finally { setBusy(false); }
+    finally { pending.current = false; setBusy(false); }
   }
   return (
     <View style={styles.rating}>

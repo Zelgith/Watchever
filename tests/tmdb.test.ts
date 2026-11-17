@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { TestContext } from 'node:test';
 
-import { requestTmdb } from '../src/lib/tmdb.ts';
+import { requestTmdb, TmdbError } from '../src/lib/tmdb.ts';
 
 function configureToken(context: TestContext) {
   const previous = process.env.EXPO_PUBLIC_TMDB_READ_ACCESS_TOKEN;
@@ -21,10 +21,20 @@ function waitForAbort(context: TestContext) {
   );
 }
 
-test('błąd serwera nie jest traktowany jak poprawna odpowiedź TMDB', async (context) => {
+test('autoryzacja, limit i błąd serwera mają osobne komunikaty bez automatycznego ponawiania', async (context) => {
   configureToken(context);
-  context.mock.method(globalThis, 'fetch', async () => new Response('', { status: 503 }));
-  await assert.rejects(requestTmdb('/genre/movie/list'), /Nie udało się pobrać danych/);
+  let status = 401;
+  const fetch = context.mock.method(globalThis, 'fetch', async () => new Response('', { status }));
+  for (const [code, message] of [[401, /Brak dostępu/], [403, /Brak dostępu/], [429, /Zbyt wiele zapytań/], [503, /Nie udało się pobrać danych/]] as const) {
+    status = code;
+    await assert.rejects(requestTmdb('/genre/movie/list'), (error: unknown) => {
+      assert.ok(error instanceof TmdbError);
+      assert.equal(error.status, code);
+      assert.match(error.message, message);
+      return true;
+    });
+  }
+  assert.equal(fetch.mock.callCount(), 4);
 });
 
 test('wyjście z ekranu może przerwać oczekujące zapytanie', async (context) => {
@@ -41,7 +51,35 @@ test('brak odpowiedzi kończy oczekiwanie po 20 sekundach', async (context) => {
   configureToken(context);
   context.mock.timers.enable({ apis: ['setTimeout'] });
   waitForAbort(context);
-  const result = assert.rejects(requestTmdb('/genre/movie/list'), { name: 'AbortError' });
+  const result = assert.rejects(requestTmdb('/genre/movie/list'), /Przekroczono czas oczekiwania/);
   context.mock.timers.tick(20_000);
+  await result;
+});
+
+test('brak internetu daje komunikat o połączeniu', async (context) => {
+  configureToken(context);
+  context.mock.method(globalThis, 'fetch', async () => { throw new TypeError('Network request failed'); });
+  await assert.rejects(requestTmdb('/genre/movie/list'), /Sprawdź połączenie z internetem/);
+});
+
+test('anulowane wyszukiwanie nie rozpoczyna kolejnych zapytań', async (context) => {
+  configureToken(context);
+  const fetch = context.mock.method(globalThis, 'fetch', async () => Response.json({ results: [] }));
+  const controller = new AbortController();
+  controller.abort();
+  await assert.rejects(requestTmdb('/genre/movie/list', {}, controller.signal), { name: 'AbortError' });
+  assert.equal(fetch.mock.callCount(), 0);
+});
+
+test('odpowiedź otrzymana po przekroczeniu czasu nie staje się poprawnym wynikiem', async (context) => {
+  configureToken(context);
+  context.mock.timers.enable({ apis: ['setTimeout'] });
+  let complete!: () => void;
+  context.mock.method(globalThis, 'fetch', () => new Promise<Response>((resolve) => {
+    complete = () => resolve(Response.json({ results: [] }));
+  }));
+  const result = assert.rejects(requestTmdb('/genre/movie/list'), /Przekroczono czas oczekiwania/);
+  context.mock.timers.tick(20_000);
+  complete();
   await result;
 });

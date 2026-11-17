@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -10,7 +10,7 @@ import { Icon } from '../components/Icon';
 import { FilterField } from '../components/FilterField';
 import { preferencesFromFields } from '../lib/preferences';
 import type { FilterFields } from '../lib/preferences';
-import { getGenres, getWatchProviders } from '../lib/tmdb';
+import { getGenres, getWatchProviders, tmdbErrorMessage } from '../lib/tmdb';
 import type { Genre, WatchProvider } from '../lib/tmdb';
 import { theme } from '../theme';
 import { useAppData } from '../state/AppData';
@@ -26,12 +26,15 @@ export default function HomeScreen() {
   const [expanded, setExpanded] = useState(false);
   const [providerQuery, setProviderQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
-  const [loadError, setLoadError] = useState(false);
-  const [genreError, setGenreError] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [genreError, setGenreError] = useState<string | null>(null);
   const [disclosureFocused, setDisclosureFocused] = useState(false);
   const [disclosureHovered, setDisclosureHovered] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [filterError, setFilterError] = useState<string | null>(null);
+  const navigating = useRef(false);
+
+  useFocusEffect(useCallback(() => { navigating.current = false; }, []));
 
   const normalizedQuery = providerQuery.trim().toLocaleLowerCase('pl');
   const visibleProviders = providers?.filter((provider, index) =>
@@ -42,30 +45,30 @@ export default function HomeScreen() {
 
   useEffect(() => {
     const controller = new AbortController();
-    setLoadError(false);
-    setGenreError(false);
+    setLoadError(null);
+    setGenreError(null);
     getWatchProviders(controller.signal)
-      .then(setProviders)
-      .catch(() => {
-        if (!controller.signal.aborted) setLoadError(true);
+      .then((value) => { if (!controller.signal.aborted) setProviders(value); })
+      .catch((error) => {
+        if (!controller.signal.aborted) setLoadError(tmdbErrorMessage(error, 'Nie udało się pobrać platform.'));
       });
     getGenres(controller.signal)
-      .then(setGenres)
-      .catch(() => {
-        if (!controller.signal.aborted) setGenreError(true);
+      .then((value) => { if (!controller.signal.aborted) setGenres(value); })
+      .catch((error) => {
+        if (!controller.signal.aborted) setGenreError(tmdbErrorMessage(error, 'Nie udało się pobrać gatunków.'));
       });
     return () => controller.abort();
   }, [loadAttempt]);
 
   function toggleProvider(id: number) {
     setFilterError(null);
-    updatePreferences({ providerIds: selectedProviders.includes(id)
-      ? selectedProviders.filter((current) => current !== id) : [...selectedProviders, id] });
+    updatePreferences((current) => ({ providerIds: current.providerIds.includes(id)
+      ? current.providerIds.filter((selected) => selected !== id) : [...current.providerIds, id] }));
   }
 
   function toggleGenre(id: number) {
-    updatePreferences({ genreIds: selectedGenres.includes(id)
-      ? selectedGenres.filter((current) => current !== id) : [...selectedGenres, id] });
+    updatePreferences((current) => ({ genreIds: current.genreIds.includes(id)
+      ? current.genreIds.filter((selected) => selected !== id) : [...current.genreIds, id] }));
   }
 
   function changeField(name: keyof FilterFields, value: string) {
@@ -74,8 +77,10 @@ export default function HomeScreen() {
   }
 
   function findMovies() {
+    if (navigating.current) return;
     try {
       preferencesFromFields(selectedProviders, selectedGenres, fields);
+      navigating.current = true;
       setFilterError(null);
       Keyboard.dismiss();
       router.push({ pathname: '/recommendation', params: {
@@ -83,6 +88,7 @@ export default function HomeScreen() {
         yearFrom: fields.yearFrom, yearTo: fields.yearTo, maxRuntime: fields.maxRuntime,
       } });
     } catch (error) {
+      navigating.current = false;
       setFilterError(error instanceof Error ? error.message : 'Sprawdź filtry.');
     }
   }
@@ -167,7 +173,7 @@ export default function HomeScreen() {
             </>
           ) : loadError ? (
             <>
-              <Text style={styles.message} accessibilityRole="alert">Nie udało się pobrać platform.</Text>
+              <Text testID="providers-error" style={styles.message} accessibilityRole="alert">{loadError}</Text>
               <ActionButton testID="retry-providers" label="Spróbuj ponownie" onPress={() => setLoadAttempt((current) => current + 1)} secondary />
             </>
           ) : (
@@ -193,7 +199,7 @@ export default function HomeScreen() {
             </View>
           ) : genreError ? (
             <>
-              <Text style={styles.message} accessibilityRole="alert">Nie udało się pobrać gatunków.</Text>
+              <Text testID="genres-error" style={styles.message} accessibilityRole="alert">{genreError}</Text>
               <ActionButton testID="retry-genres" label="Spróbuj ponownie" onPress={() => setLoadAttempt((current) => current + 1)} secondary />
             </>
           ) : (

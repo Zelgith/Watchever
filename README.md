@@ -10,6 +10,8 @@ Następnie użytkownikowi wyświetlana jest lista rekomendowanych filmów. Każd
 
 Preferencje i lista „Obejrzane” są zapisywane lokalnie w SQLite. Filmy można dodawać z wyszukiwarki tytułów lub rekomendacji i oceniać od 0,5 do 5 gwiazdek, co pół gwiazdki. Ocena 2,5 jest neutralna; wyższe wzmacniają dopasowanie, a niższe je osłabiają. Rekomendacje pomijają obejrzane tytuły i uwzględniają oceny oraz podobne filmy, zachowując wszystkie ustawione filtry. Odświeżenie pobiera do 20 innych propozycji, bez filmów z bieżącej listy. Przy błędzie lub braku innych dopasowań dotychczasowa lista pozostaje dostępna. Wyszukiwanie sprawdza do pięciu stron wyników TMDB.
 
+Oznaczenia TMDB i JustWatch są dostępne w profilu, w oknie „Źródła danych”.
+
 ### Funkcjonalności opcjonalne
 
 Import historii i ocen z plików `.csv` pozostaje funkcją opcjonalną.
@@ -42,7 +44,7 @@ Import historii i ocen z plików `.csv` pozostaje funkcją opcjonalną.
 
 ## Uruchomienie
 
-Node.js 24 lub 26 LTS. Android: [Expo Go (SDK 58)](https://expo.dev/go?sdkVersion=58&platform=android&device=true) lub włączony emulator.
+Node.js 24 lub 26 LTS, JDK 17 i Android SDK. Włącz emulator lub podłącz telefon z debugowaniem USB.
 
 ```sh
 npm ci
@@ -56,9 +58,7 @@ EXPO_PUBLIC_TMDB_READ_ACCESS_TOKEN=TWOJ_TOKEN
 ```
 
 ```sh
-npm start        # telefon w tej samej sieci: QR w Expo Go
-# lub
-npm run android  # emulator
+npm run apk
+adb install -r dist/Watchever.apk
+adb shell am start -n com.watchever.app/.MainActivity
 ```
-
-APK testowy: `npm run apk` (JDK 17 i Android SDK).
