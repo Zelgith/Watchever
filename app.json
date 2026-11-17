@@ -2,7 +2,7 @@
   "expo": {
     "name": "Watchever",
     "slug": "watchever",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "scheme": "watchever",
     "platforms": [
       "android"
@@ -15,7 +15,15 @@
       "expo-sqlite"
     ],
     "android": {
-      "package": "com.watchever.app"
+      "package": "com.watchever.app",
+      "versionCode": 2,
+      "allowBackup": false,
+      "blockedPermissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.VIBRATE"
+      ]
     },
     "experiments": {
       "typedRoutes": true
