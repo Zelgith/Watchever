@@ -5,6 +5,7 @@ import { ActivityIndicator, FlatList, Keyboard, Modal, Pressable, ScrollView, St
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ActionButton } from '../components/ActionButton';
+import { DataSources } from '../components/DataSources';
 import { Icon } from '../components/Icon';
 import { IconButton } from '../components/IconButton';
 import { RatingInput } from '../components/RatingInput';
@@ -18,6 +19,7 @@ export default function HistoryScreen() {
   const router = useRouter();
   const { history, markWatched, rateMovie, removeFromHistory } = useAppData();
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [sourcesOpen, setSourcesOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   const [focusedId, setFocusedId] = useState<number | null>(null);
@@ -121,8 +123,9 @@ export default function HistoryScreen() {
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.toolbar}>
-        <Text accessibilityRole="header" style={styles.heading}>Obejrzane</Text>
+        <Text accessibilityRole="header" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} style={styles.heading}>Obejrzane</Text>
         <Text testID="history-count" style={styles.caption} accessibilityLabel={`Obejrzane filmy: ${history.length}`}>{history.length}</Text>
+        <IconButton testID="open-data-sources" icon="info" label="Źródła danych" onPress={() => setSourcesOpen(true)} />
         <IconButton testID="history-back" icon="back" label="Wróć" onPress={() => router.canGoBack() ? router.back() : router.replace('/')} />
       </View>
       <View style={styles.searchArea}>
@@ -188,6 +191,7 @@ export default function HistoryScreen() {
           </SafeAreaView>
         </View>
       </Modal>
+      <DataSources visible={sourcesOpen} onClose={() => setSourcesOpen(false)} />
     </SafeAreaView>
   );
 }
