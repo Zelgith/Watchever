@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { StyleProp, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,6 +25,7 @@ export function MovieCard({ movie, providerIds, onDismiss, style }: Props) {
   const [hovered, setHovered] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
+  const pending = useRef(false);
   const providers = movie['watch/providers']?.results?.[WATCH_REGION]?.flatrate?.filter(
     (provider) => providerIds.includes(provider.provider_id),
   ) ?? [];
@@ -44,12 +45,13 @@ export function MovieCard({ movie, providerIds, onDismiss, style }: Props) {
   }
 
   async function watch() {
-    if (saving) return;
+    if (pending.current) return;
+    pending.current = true;
     setSaving(true);
     setSaveError(false);
     try { await markWatched(movie); }
     catch { setSaveError(true); }
-    finally { setSaving(false); }
+    finally { pending.current = false; setSaving(false); }
   }
 
   return (

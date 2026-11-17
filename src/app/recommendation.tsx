@@ -42,9 +42,16 @@ export default function RecommendationScreen() {
   const [noNewMovies, setNoNewMovies] = useState(false);
   const excludedIds = useRef<number[]>([]);
   const dismissedIds = useRef(new Set<number>());
+  const pending = useRef(true);
+
+  useEffect(() => {
+    excludedIds.current = [];
+    dismissedIds.current.clear();
+  }, [providers, genres, yearFrom, yearTo, maxRuntime]);
 
   useEffect(() => {
     const controller = new AbortController();
+    pending.current = true;
     setLoading(true);
     setFailure(null);
     setNoNewMovies(false);
@@ -73,7 +80,10 @@ export default function RecommendationScreen() {
       } catch (error) {
         if (!controller.signal.aborted) setFailure(tmdbErrorMessage(error, 'Nie udało się pobrać filmów.'));
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted) {
+          pending.current = false;
+          setLoading(false);
+        }
       }
     }
 
@@ -81,12 +91,18 @@ export default function RecommendationScreen() {
     return () => controller.abort();
   }, [providers, genres, yearFrom, yearTo, maxRuntime, attempt]);
 
-  function refresh() {
-    if (loading) return;
-    excludedIds.current = [...new Set([...dismissedIds.current, ...movies.map((movie) => movie.id)])];
-    list.current?.scrollToOffset({ offset: 0, animated: false });
+  function retry() {
+    if (pending.current) return;
+    pending.current = true;
     setLoading(true);
     setAttempt((current) => current + 1);
+  }
+
+  function refresh() {
+    if (pending.current) return;
+    excludedIds.current = [...new Set([...dismissedIds.current, ...movies.map((movie) => movie.id)])];
+    list.current?.scrollToOffset({ offset: 0, animated: false });
+    retry();
   }
 
   function goBack() {
@@ -128,7 +144,7 @@ export default function RecommendationScreen() {
             <Text testID={failure ? 'refresh-error' : 'refresh-empty'} accessibilityRole={failure ? 'alert' : undefined} style={styles.message}>
               {failure ?? 'Brak innych filmów dla tych filtrów.'}
             </Text>
-            {failure ? <ActionButton testID="retry-refresh" label="Spróbuj ponownie" secondary onPress={() => setAttempt((current) => current + 1)} /> : null}
+            {failure ? <ActionButton testID="retry-refresh" label="Spróbuj ponownie" secondary disabled={loading} onPress={retry} /> : null}
           </View>
         ) : undefined}
         ListEmptyComponent={(
@@ -145,7 +161,7 @@ export default function RecommendationScreen() {
           ) : failure ? (
             <View style={styles.empty}>
               <Text testID="recommendations-error" style={styles.message} accessibilityRole="alert">{failure}</Text>
-              <ActionButton testID="retry-movies" label="Spróbuj ponownie" onPress={() => setAttempt((current) => current + 1)} secondary />
+              <ActionButton testID="retry-movies" label="Spróbuj ponownie" onPress={retry} secondary />
             </View>
           ) : loadedCount > 0 && !noNewMovies ? (
             <View style={styles.empty}>

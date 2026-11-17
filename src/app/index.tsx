@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -32,6 +32,9 @@ export default function HomeScreen() {
   const [disclosureHovered, setDisclosureHovered] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [filterError, setFilterError] = useState<string | null>(null);
+  const navigating = useRef(false);
+
+  useFocusEffect(useCallback(() => { navigating.current = false; }, []));
 
   const normalizedQuery = providerQuery.trim().toLocaleLowerCase('pl');
   const visibleProviders = providers?.filter((provider, index) =>
@@ -59,13 +62,13 @@ export default function HomeScreen() {
 
   function toggleProvider(id: number) {
     setFilterError(null);
-    updatePreferences({ providerIds: selectedProviders.includes(id)
-      ? selectedProviders.filter((current) => current !== id) : [...selectedProviders, id] });
+    updatePreferences((current) => ({ providerIds: current.providerIds.includes(id)
+      ? current.providerIds.filter((selected) => selected !== id) : [...current.providerIds, id] }));
   }
 
   function toggleGenre(id: number) {
-    updatePreferences({ genreIds: selectedGenres.includes(id)
-      ? selectedGenres.filter((current) => current !== id) : [...selectedGenres, id] });
+    updatePreferences((current) => ({ genreIds: current.genreIds.includes(id)
+      ? current.genreIds.filter((selected) => selected !== id) : [...current.genreIds, id] }));
   }
 
   function changeField(name: keyof FilterFields, value: string) {
@@ -74,8 +77,10 @@ export default function HomeScreen() {
   }
 
   function findMovies() {
+    if (navigating.current) return;
     try {
       preferencesFromFields(selectedProviders, selectedGenres, fields);
+      navigating.current = true;
       setFilterError(null);
       Keyboard.dismiss();
       router.push({ pathname: '/recommendation', params: {
@@ -83,6 +88,7 @@ export default function HomeScreen() {
         yearFrom: fields.yearFrom, yearTo: fields.yearTo, maxRuntime: fields.maxRuntime,
       } });
     } catch (error) {
+      navigating.current = false;
       setFilterError(error instanceof Error ? error.message : 'Sprawdź filtry.');
     }
   }
