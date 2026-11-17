@@ -39,11 +39,18 @@ export type MovieSearchPage = { results: MovieSummary[]; total_pages: number };
 export const WATCH_REGION = 'PL';
 
 export class TmdbError extends Error {
-  readonly status: number;
-  constructor(status: number) {
-    super('Nie udało się pobrać danych z bazy filmów.');
+  readonly status: number | null;
+  constructor(status: number | null, message?: string) {
+    super(message ?? (status === 401 || status === 403 ? 'Brak dostępu do bazy filmów.' :
+      status === 429 ? 'Zbyt wiele zapytań. Odczekaj chwilę i spróbuj ponownie.' :
+        'Nie udało się pobrać danych z bazy filmów. Spróbuj ponownie.'));
+    this.name = 'TmdbError';
     this.status = status;
   }
+}
+
+export function tmdbErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof TmdbError ? error.message : fallback;
 }
 
 export async function requestTmdb<T>(
@@ -51,10 +58,11 @@ export async function requestTmdb<T>(
   parameters: Record<string, string> = {},
   signal?: AbortSignal,
 ): Promise<T> {
+  signal?.throwIfAborted();
   const token = process.env.EXPO_PUBLIC_TMDB_READ_ACCESS_TOKEN?.trim();
 
   if (!token) {
-    throw new Error('Brak dostępu do bazy filmów.');
+    throw new TmdbError(null, 'Brak dostępu do bazy filmów.');
   }
 
   const url = new URL(`https://api.themoviedb.org/3${path}`);
@@ -64,18 +72,27 @@ export async function requestTmdb<T>(
   }
 
   const controller = new AbortController();
+  let timedOut = false;
   const abort = () => controller.abort();
   if (signal?.aborted) abort();
   signal?.addEventListener('abort', abort, { once: true });
-  const timeout = setTimeout(abort, 20_000);
+  const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, 20_000);
 
   try {
     const response = await fetch(url.toString(), {
       headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
       signal: controller.signal,
     });
+    controller.signal.throwIfAborted();
     if (!response.ok) throw new TmdbError(response.status);
-    return await response.json() as T;
+    const data = await response.json() as T;
+    controller.signal.throwIfAborted();
+    return data;
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    if (timedOut) throw new TmdbError(null, 'Przekroczono czas oczekiwania. Spróbuj ponownie.');
+    if (error instanceof TypeError) throw new TmdbError(null, 'Sprawdź połączenie z internetem i spróbuj ponownie.');
+    throw error;
   } finally {
     clearTimeout(timeout);
     signal?.removeEventListener('abort', abort);

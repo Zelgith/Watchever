@@ -9,6 +9,7 @@ import { MovieCard } from '../components/MovieCard';
 import { getRecommendations } from '../lib/recommendations';
 import { preferencesFromFields } from '../lib/preferences';
 import type { MovieDetails } from '../lib/tmdb';
+import { tmdbErrorMessage } from '../lib/tmdb';
 import { theme } from '../theme';
 import { useAppData } from '../state/AppData';
 
@@ -36,7 +37,7 @@ export default function RecommendationScreen() {
   const [providerIds, setProviderIds] = useState<number[]>([]);
   const [loadedCount, setLoadedCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [noNewMovies, setNoNewMovies] = useState(false);
   const excludedIds = useRef<number[]>([]);
@@ -45,7 +46,7 @@ export default function RecommendationScreen() {
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
-    setFailed(false);
+    setFailure(null);
     setNoNewMovies(false);
     if (excludedIds.current.length === 0) {
       setMovies([]);
@@ -69,8 +70,8 @@ export default function RecommendationScreen() {
             setNoNewMovies(true);
           }
         }
-      } catch {
-        if (!controller.signal.aborted) setFailed(true);
+      } catch (error) {
+        if (!controller.signal.aborted) setFailure(tmdbErrorMessage(error, 'Nie udało się pobrać filmów.'));
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
@@ -98,7 +99,7 @@ export default function RecommendationScreen() {
       <View style={styles.toolbar}>
         <View style={styles.titleGroup}>
           <Text accessibilityRole="header" style={styles.title}>Filmy</Text>
-          {movies.length > 0 || (!loading && !failed) ? <Text testID="movie-count" accessibilityLabel={`Liczba filmów: ${movies.length}`} style={styles.count}>{movies.length}</Text> : null}
+          {movies.length > 0 || (!loading && !failure) ? <Text testID="movie-count" accessibilityLabel={`Liczba filmów: ${movies.length}`} style={styles.count}>{movies.length}</Text> : null}
         </View>
         <IconButton testID="refresh-movies" label="Odśwież filmy" icon="refresh" loading={loading} onPress={refresh} />
         <IconButton testID="change-filters-button" label="Wróć" icon="back" onPress={goBack} />
@@ -122,12 +123,12 @@ export default function RecommendationScreen() {
             }}
           />
         )}
-        ListHeaderComponent={movies.length > 0 && (failed || noNewMovies) ? (
+        ListHeaderComponent={movies.length > 0 && (failure || noNewMovies) ? (
           <View style={styles.status}>
-            <Text testID={failed ? 'refresh-error' : 'refresh-empty'} accessibilityRole={failed ? 'alert' : undefined} style={styles.message}>
-              {failed ? 'Nie udało się odświeżyć filmów.' : 'Brak innych filmów dla tych filtrów.'}
+            <Text testID={failure ? 'refresh-error' : 'refresh-empty'} accessibilityRole={failure ? 'alert' : undefined} style={styles.message}>
+              {failure ?? 'Brak innych filmów dla tych filtrów.'}
             </Text>
-            {failed ? <ActionButton testID="retry-refresh" label="Spróbuj ponownie" secondary onPress={() => setAttempt((current) => current + 1)} /> : null}
+            {failure ? <ActionButton testID="retry-refresh" label="Spróbuj ponownie" secondary onPress={() => setAttempt((current) => current + 1)} /> : null}
           </View>
         ) : undefined}
         ListEmptyComponent={(
@@ -141,9 +142,9 @@ export default function RecommendationScreen() {
                 </View>
               ))}
             </View>
-          ) : failed ? (
+          ) : failure ? (
             <View style={styles.empty}>
-              <Text testID="recommendations-error" style={styles.message} accessibilityRole="alert">Nie udało się pobrać filmów.</Text>
+              <Text testID="recommendations-error" style={styles.message} accessibilityRole="alert">{failure}</Text>
               <ActionButton testID="retry-movies" label="Spróbuj ponownie" onPress={() => setAttempt((current) => current + 1)} secondary />
             </View>
           ) : loadedCount > 0 && !noNewMovies ? (

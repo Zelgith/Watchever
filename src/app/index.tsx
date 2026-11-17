@@ -10,7 +10,7 @@ import { Icon } from '../components/Icon';
 import { FilterField } from '../components/FilterField';
 import { preferencesFromFields } from '../lib/preferences';
 import type { FilterFields } from '../lib/preferences';
-import { getGenres, getWatchProviders } from '../lib/tmdb';
+import { getGenres, getWatchProviders, tmdbErrorMessage } from '../lib/tmdb';
 import type { Genre, WatchProvider } from '../lib/tmdb';
 import { theme } from '../theme';
 import { useAppData } from '../state/AppData';
@@ -26,8 +26,8 @@ export default function HomeScreen() {
   const [expanded, setExpanded] = useState(false);
   const [providerQuery, setProviderQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
-  const [loadError, setLoadError] = useState(false);
-  const [genreError, setGenreError] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [genreError, setGenreError] = useState<string | null>(null);
   const [disclosureFocused, setDisclosureFocused] = useState(false);
   const [disclosureHovered, setDisclosureHovered] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -42,17 +42,17 @@ export default function HomeScreen() {
 
   useEffect(() => {
     const controller = new AbortController();
-    setLoadError(false);
-    setGenreError(false);
+    setLoadError(null);
+    setGenreError(null);
     getWatchProviders(controller.signal)
-      .then(setProviders)
-      .catch(() => {
-        if (!controller.signal.aborted) setLoadError(true);
+      .then((value) => { if (!controller.signal.aborted) setProviders(value); })
+      .catch((error) => {
+        if (!controller.signal.aborted) setLoadError(tmdbErrorMessage(error, 'Nie udało się pobrać platform.'));
       });
     getGenres(controller.signal)
-      .then(setGenres)
-      .catch(() => {
-        if (!controller.signal.aborted) setGenreError(true);
+      .then((value) => { if (!controller.signal.aborted) setGenres(value); })
+      .catch((error) => {
+        if (!controller.signal.aborted) setGenreError(tmdbErrorMessage(error, 'Nie udało się pobrać gatunków.'));
       });
     return () => controller.abort();
   }, [loadAttempt]);
@@ -167,7 +167,7 @@ export default function HomeScreen() {
             </>
           ) : loadError ? (
             <>
-              <Text style={styles.message} accessibilityRole="alert">Nie udało się pobrać platform.</Text>
+              <Text testID="providers-error" style={styles.message} accessibilityRole="alert">{loadError}</Text>
               <ActionButton testID="retry-providers" label="Spróbuj ponownie" onPress={() => setLoadAttempt((current) => current + 1)} secondary />
             </>
           ) : (
@@ -193,7 +193,7 @@ export default function HomeScreen() {
             </View>
           ) : genreError ? (
             <>
-              <Text style={styles.message} accessibilityRole="alert">Nie udało się pobrać gatunków.</Text>
+              <Text testID="genres-error" style={styles.message} accessibilityRole="alert">{genreError}</Text>
               <ActionButton testID="retry-genres" label="Spróbuj ponownie" onPress={() => setLoadAttempt((current) => current + 1)} secondary />
             </>
           ) : (
