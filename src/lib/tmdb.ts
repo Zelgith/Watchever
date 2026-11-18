@@ -79,10 +79,16 @@ export async function requestTmdb<T>(
   const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, 20_000);
 
   try {
-    const response = await fetch(url.toString(), {
-      headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
-      signal: controller.signal,
-    });
+    let response: Response;
+    try {
+      response = await fetch(url.toString(), {
+        headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (controller.signal.aborted) throw error;
+      throw new TmdbError(null, 'Sprawdź połączenie z internetem i spróbuj ponownie.');
+    }
     controller.signal.throwIfAborted();
     if (!response.ok) throw new TmdbError(response.status);
     const data = await response.json() as T;
@@ -91,7 +97,6 @@ export async function requestTmdb<T>(
   } catch (error) {
     if (signal?.aborted) throw error;
     if (timedOut) throw new TmdbError(null, 'Przekroczono czas oczekiwania. Spróbuj ponownie.');
-    if (error instanceof TypeError) throw new TmdbError(null, 'Sprawdź połączenie z internetem i spróbuj ponownie.');
     throw error;
   } finally {
     clearTimeout(timeout);

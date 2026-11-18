@@ -62,6 +62,26 @@ test('brak internetu daje komunikat o połączeniu', async (context) => {
   await assert.rejects(requestTmdb('/genre/movie/list'), /Sprawdź połączenie z internetem/);
 });
 
+test('błąd fetch z Expo również daje komunikat o połączeniu', async (context) => {
+  configureToken(context);
+  class FetchError extends Error {}
+  context.mock.method(globalThis, 'fetch', async () => { throw new FetchError('fetch failed: Connection reset'); });
+  await assert.rejects(requestTmdb('/genre/movie/list'), (error: unknown) => {
+    assert.ok(error instanceof TmdbError);
+    assert.match(error.message, /Sprawdź połączenie z internetem/);
+    return true;
+  });
+});
+
+test('błąd odczytu odpowiedzi nie jest przedstawiany jako brak połączenia', async (context) => {
+  configureToken(context);
+  const failure = new TypeError('Nie można odczytać odpowiedzi');
+  const response = Response.json({});
+  context.mock.method(response, 'json', async () => { throw failure; });
+  context.mock.method(globalThis, 'fetch', async () => response);
+  await assert.rejects(requestTmdb('/genre/movie/list'), (error: unknown) => error === failure);
+});
+
 test('anulowane wyszukiwanie nie rozpoczyna kolejnych zapytań', async (context) => {
   configureToken(context);
   const fetch = context.mock.method(globalThis, 'fetch', async () => Response.json({ results: [] }));
