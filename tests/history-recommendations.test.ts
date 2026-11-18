@@ -37,7 +37,7 @@ test('obejrzana pierwsza strona prowadzi do następnej bez pobierania obejrzanyc
     return Response.json(id === 4 ? { ...movie(id), runtime: null } : movie(id));
   });
   const preferences = { providerIds: [8], genreIds: [28], yearFrom: 2010, yearTo: 2010, maxRuntime: 100 };
-  const result = await getRecommendations(preferences, undefined, [watched(1), watched(2)]);
+  const { movies: result } = await getRecommendations(preferences, undefined, [watched(1), watched(2)]);
   assert.deepEqual(result.map(({ id }) => id), [3]);
   assert.deepEqual(detailIds, [3, 4]);
 });
@@ -57,10 +57,10 @@ test('oceny i podobne filmy zmieniają kolejność, zachowując wszystkie twarde
   });
   const history = [watched(1, 4.5, 28), watched(2, 1, 99)];
   const preferences = { providerIds: [8], genreIds: [], yearFrom: 2000, yearTo: 2020, maxRuntime: 120 };
-  const result = await getRecommendations(preferences, undefined, history);
+  const { movies: result } = await getRecommendations(preferences, undefined, history);
   assert.deepEqual(result.map(({ id }) => id), [300, 400, 200, 100]);
   assert.ok(result.every((film) => matchesPreferences(film, preferences)));
-  const actionOnly = await getRecommendations({ ...preferences, genreIds: [28] }, undefined, history);
+  const { movies: actionOnly } = await getRecommendations({ ...preferences, genreIds: [28] }, undefined, history);
   assert.deepEqual(actionOnly.map(({ id }) => id), [300]);
 });
 
@@ -71,23 +71,88 @@ test('awaria dodatkowych podobnych filmów nie blokuje podstawowych rekomendacji
     if (url.pathname.endsWith('/recommendations')) { relatedRequests++; return new Response('', { status: 503 }); }
     return Response.json(movie(2));
   });
-  const result = await getRecommendations({ providerIds: [8], genreIds: [] }, undefined, [watched(1, 5)]);
+  const { movies: result } = await getRecommendations({ providerIds: [8], genreIds: [] }, undefined, [watched(1, 5)]);
   assert.deepEqual(result.map(({ id }) => id), [2]);
   assert.equal(relatedRequests, 1);
 });
 
-test('poszukiwanie niewidzianych filmów ma limit pięciu stron', async (context) => {
+test('sto obejrzanych filmów nie blokuje kolejnej dwudziestki na szóstej stronie', async (context) => {
   const pages: number[] = [];
   mockApi(context, (url) => {
-    if (url.pathname.endsWith('/recommendations')) return Response.json({ results: [] });
-    assert.ok(url.pathname.endsWith('/discover/movie'), 'Nie pobieraj szczegółów obejrzanych filmów');
+    if (url.pathname.endsWith('/discover/movie')) {
+      const page = Number(url.searchParams.get('page'));
+      pages.push(page);
+      return Response.json({ total_pages: 7, results: Array.from({ length: 20 }, (_, index) => ({ id: (page - 1) * 20 + index + 1 })) });
+    }
+    const id = Number(url.pathname.split('/').at(-1));
+    assert.ok(id > 100, 'Nie pobieraj szczegółów obejrzanych filmów');
+    return Response.json(movie(id));
+  });
+  const history = Array.from({ length: 100 }, (_, index) => watched(index + 1, 2.5));
+  const { movies: result } = await getRecommendations({ providerIds: [8], genreIds: [] }, undefined, history);
+  assert.deepEqual(result.map(({ id }) => id), Array.from({ length: 20 }, (_, index) => index + 101));
+  assert.deepEqual(pages, [1, 2, 3, 4, 5, 6]);
+});
+
+test('przerwana czasowo partia zachowuje następną stronę zamiast zgłaszać wyczerpanie katalogu', async (context) => {
+  context.mock.timers.enable({ apis: ['Date'] });
+  const pages: number[] = [];
+  mockApi(context, (url) => {
+    if (url.pathname.endsWith('/discover/movie')) {
+      const page = Number(url.searchParams.get('page'));
+      pages.push(page);
+      if (page === 5) context.mock.timers.tick(5_000);
+      return Response.json({ total_pages: 6, results: Array.from({ length: 20 }, (_, index) => ({ id: (page - 1) * 20 + index + 1 })) });
+    }
+    return Response.json(movie(Number(url.pathname.split('/').at(-1))));
+  });
+  const preferences = { providerIds: [8], genreIds: [] };
+  const history = Array.from({ length: 100 }, (_, index) => watched(index + 1, 2.5));
+  const first = await getRecommendations(preferences, undefined, history);
+  assert.deepEqual(first, { movies: [], nextPage: 6 });
+  const continued = await getRecommendations(preferences, undefined, history, [], first.nextPage!);
+  assert.deepEqual(continued.movies.map(({ id }) => id), Array.from({ length: 20 }, (_, index) => index + 101));
+  assert.equal(continued.nextPage, null);
+  assert.deepEqual(pages, [1, 2, 3, 4, 5, 6]);
+});
+
+test('częściowy wynik pozwala kontynuować bez powtórzeń i z tymi samymi filtrami', async (context) => {
+  context.mock.timers.enable({ apis: ['Date'] });
+  const pages: number[] = [];
+  mockApi(context, (url) => {
+    if (url.pathname.endsWith('/discover/movie')) {
+      const page = Number(url.searchParams.get('page'));
+      pages.push(page);
+      assert.equal(url.searchParams.get('primary_release_date.gte'), '2010-01-01');
+      assert.equal(url.searchParams.get('with_runtime.lte'), '100');
+      if (page === 1) context.mock.timers.tick(5_000);
+      return Response.json({ total_pages: 2, results: [{ id: page }] });
+    }
+    return Response.json(movie(Number(url.pathname.split('/').at(-1))));
+  });
+  const preferences = { providerIds: [8], genreIds: [28], yearFrom: 2010, maxRuntime: 100 };
+  const first = await getRecommendations(preferences);
+  assert.deepEqual(first.movies.map(({ id }) => id), [1]);
+  assert.equal(first.nextPage, 2);
+  const second = await getRecommendations(preferences, undefined, [], [1], first.nextPage!);
+  assert.deepEqual(second.movies.map(({ id }) => id), [2]);
+  assert.equal(second.nextPage, null);
+  assert.deepEqual(pages, [1, 2]);
+});
+
+test('anulowanie na dalszej stronie kończy wyszukiwanie bez następnych zapytań', async (context) => {
+  const controller = new AbortController();
+  const pages: number[] = [];
+  mockApi(context, (url) => {
+    assert.ok(url.pathname.endsWith('/discover/movie'));
     const page = Number(url.searchParams.get('page'));
     pages.push(page);
-    return Response.json({ total_pages: 500, results: [{ id: page }] });
+    if (page === 6) controller.abort();
+    return Response.json({ total_pages: 10, results: [{ id: page }] });
   });
-  const result = await getRecommendations({ providerIds: [8], genreIds: [] }, undefined, [1, 2, 3, 4, 5].map((id) => watched(id)));
-  assert.deepEqual(result, []);
-  assert.deepEqual(pages, [1, 2, 3, 4, 5]);
+  const history = Array.from({ length: 10 }, (_, index) => watched(index + 1, 2.5));
+  await assert.rejects(getRecommendations({ providerIds: [8], genreIds: [] }, controller.signal, history), { name: 'AbortError' });
+  assert.deepEqual(pages, [1, 2, 3, 4, 5, 6]);
 });
 
 test('podobne filmy z historii bez ocen również wpływają na dobór', async (context) => {
@@ -96,7 +161,7 @@ test('podobne filmy z historii bez ocen również wpływają na dobór', async (
     if (url.pathname.endsWith('/recommendations')) return Response.json({ results: [{ id: 3 }] });
     return Response.json(movie(Number(url.pathname.split('/').at(-1))));
   });
-  const result = await getRecommendations({ providerIds: [8], genreIds: [] }, undefined, [watched(1)]);
+  const { movies: result } = await getRecommendations({ providerIds: [8], genreIds: [] }, undefined, [watched(1)]);
   assert.deepEqual(result.map(({ id }) => id), [3, 2]);
 });
 
@@ -112,9 +177,9 @@ test('odświeżenie zwraca inną dwudziestkę i nie pobiera ponownie szczegół�
     return Response.json(movie(id));
   });
   const preferences = { providerIds: [8], genreIds: [28], yearFrom: 2010, yearTo: 2010, maxRuntime: 100 };
-  const first = await getRecommendations(preferences);
+  const { movies: first } = await getRecommendations(preferences);
   detailIds.length = 0;
-  const second = await getRecommendations(preferences, undefined, [], first.map(({ id }) => id));
+  const { movies: second } = await getRecommendations(preferences, undefined, [], first.map(({ id }) => id));
   assert.equal(first.length, 20);
   assert.equal(second.length, 20);
   assert.ok(second.every((film) => !first.some(({ id }) => id === film.id) && matchesPreferences(film, preferences)));
@@ -126,7 +191,7 @@ test('brak innych dopasowań nie przywraca wykluczonych filmów', async (context
     assert.ok(url.pathname.endsWith('/discover/movie'));
     return Response.json({ total_pages: 1, results: [{ id: 1 }, { id: 2 }] });
   });
-  assert.deepEqual(await getRecommendations({ providerIds: [8], genreIds: [] }, undefined, [], [1, 2]), []);
+  assert.deepEqual((await getRecommendations({ providerIds: [8], genreIds: [] }, undefined, [], [1, 2])).movies, []);
 });
 
 test('usunięty z TMDB film jest pomijany, a błąd komunikacji nadal jest błędem', async (context) => {
@@ -135,7 +200,7 @@ test('usunięty z TMDB film jest pomijany, a błąd komunikacji nadal jest błę
     if (url.pathname.endsWith('/discover/movie')) return Response.json({ results: [{ id: 1 }, { id: 2 }] });
     return url.pathname.endsWith('/1') ? new Response('', { status }) : Response.json(movie(2));
   });
-  assert.deepEqual((await getRecommendations({ providerIds: [8], genreIds: [] })).map(({ id }) => id), [2]);
+  assert.deepEqual((await getRecommendations({ providerIds: [8], genreIds: [] })).movies.map(({ id }) => id), [2]);
   status = 503;
   await assert.rejects(getRecommendations({ providerIds: [8], genreIds: [] }));
 });
@@ -153,9 +218,9 @@ test('sama zamiana ocen odwraca ranking tego samego katalogu przy tej samej hist
   const actionLiked = [watched(1, 5, 28), watched(2, 0.5, 35)];
   const comedyLiked = [watched(1, 0.5, 28), watched(2, 5, 35)];
   const neutral = [watched(1, 2.5, 28), watched(2, 2.5, 35)];
-  const first = await getRecommendations(preferences, undefined, actionLiked);
-  const reversed = await getRecommendations(preferences, undefined, comedyLiked);
-  const unchanged = await getRecommendations(preferences, undefined, neutral);
+  const { movies: first } = await getRecommendations(preferences, undefined, actionLiked);
+  const { movies: reversed } = await getRecommendations(preferences, undefined, comedyLiked);
+  const { movies: unchanged } = await getRecommendations(preferences, undefined, neutral);
   assert.deepEqual(first.map(({ id }) => id), [4, 5, 3]);
   assert.deepEqual(reversed.map(({ id }) => id), [3, 5, 4]);
   assert.deepEqual(unchanged.map(({ id }) => id), [3, 4, 5]);
@@ -172,10 +237,10 @@ test('ocena 2,5 jest neutralna, a 3 promuje gatunek słabiej niż wyższa ocena'
   });
   const preferences = { providerIds: [8], genreIds: [] };
   for (const [rating, expected] of [[2, [3, 5, 4]], [2.5, [3, 4, 5]], [3, [4, 3, 5]]] as const) {
-    const result = await getRecommendations(preferences, undefined, [watched(1, rating, 28), watched(2, 2.5, 35)]);
+    const { movies: result } = await getRecommendations(preferences, undefined, [watched(1, rating, 28), watched(2, 2.5, 35)]);
     assert.deepEqual(result.map(({ id }) => id), expected, `Ocena ${rating}`);
   }
-  const strongerComedy = await getRecommendations(preferences, undefined, [watched(1, 3, 28), watched(2, 3.5, 35)]);
+  const { movies: strongerComedy } = await getRecommendations(preferences, undefined, [watched(1, 3, 28), watched(2, 3.5, 35)]);
   assert.deepEqual(strongerComedy.map(({ id }) => id), [3, 4, 5]);
 });
 
@@ -189,7 +254,7 @@ test('ocena 3 włącza podobieństwo filmu, a neutralna i niska nie promują pod
   const preferences = { providerIds: [8], genreIds: [] };
   for (const rating of [0.5, 2, 2.5, 3, 3.5, 5]) {
     relatedRequests = 0;
-    const result = await getRecommendations(preferences, undefined, [watched(1, rating, 28)]);
+    const { movies: result } = await getRecommendations(preferences, undefined, [watched(1, rating, 28)]);
     assert.deepEqual(result.map(({ id }) => id), rating > 2.5 ? [3, 2] : [2, 3], `Ocena ${rating}`);
     assert.equal(relatedRequests, rating > 2.5 ? 1 : 0, `Ocena ${rating}`);
   }

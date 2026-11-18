@@ -40,6 +40,8 @@ export default function RecommendationScreen() {
   const [failure, setFailure] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [noNewMovies, setNoNewMovies] = useState(false);
+  const [nextPage, setNextPage] = useState<number | null>(null);
+  const searchPage = useRef(1);
   const excludedIds = useRef<number[]>([]);
   const dismissedIds = useRef(new Set<number>());
   const pending = useRef(true);
@@ -47,6 +49,8 @@ export default function RecommendationScreen() {
   useEffect(() => {
     excludedIds.current = [];
     dismissedIds.current.clear();
+    searchPage.current = 1;
+    setNextPage(null);
   }, [providers, genres, yearFrom, yearTo, maxRuntime]);
 
   useEffect(() => {
@@ -64,11 +68,12 @@ export default function RecommendationScreen() {
       try {
         const selected = selectionIds(providers);
         setProviderIds(selected);
-        const recommendations = await getRecommendations(
-          preferencesFromFields(selected, selectionIds(genres), { yearFrom: yearFrom ?? '', yearTo: yearTo ?? '', maxRuntime: maxRuntime ?? '' }), controller.signal, historyRef.current, excludedIds.current,
+        const result = await getRecommendations(
+          preferencesFromFields(selected, selectionIds(genres), { yearFrom: yearFrom ?? '', yearTo: yearTo ?? '', maxRuntime: maxRuntime ?? '' }), controller.signal, historyRef.current, excludedIds.current, searchPage.current,
         );
         if (!controller.signal.aborted) {
-          const unwatched = recommendations.filter((movie) => !historyRef.current.some((entry) => entry.id === movie.id));
+          setNextPage(result.nextPage);
+          const unwatched = result.movies.filter((movie) => !historyRef.current.some((entry) => entry.id === movie.id));
           if (unwatched.length > 0 || excludedIds.current.length === 0) {
             setMovies(unwatched);
             setLoadedCount(unwatched.length);
@@ -100,6 +105,7 @@ export default function RecommendationScreen() {
 
   function refresh() {
     if (pending.current) return;
+    searchPage.current = nextPage !== null && (movies.length < 20 || noNewMovies) ? nextPage : 1;
     excludedIds.current = [...new Set([...dismissedIds.current, ...movies.map((movie) => movie.id)])];
     list.current?.scrollToOffset({ offset: 0, animated: false });
     retry();
@@ -141,10 +147,11 @@ export default function RecommendationScreen() {
         )}
         ListHeaderComponent={movies.length > 0 && (failure || noNewMovies) ? (
           <View style={styles.status}>
-            <Text testID={failure ? 'refresh-error' : 'refresh-empty'} accessibilityRole={failure ? 'alert' : undefined} style={styles.message}>
-              {failure ?? 'Brak innych filmów dla tych filtrów.'}
-            </Text>
-            {failure ? <ActionButton testID="retry-refresh" label="Spróbuj ponownie" secondary disabled={loading} onPress={retry} /> : null}
+            {failure || nextPage === null ? <Text testID={failure ? 'refresh-error' : 'refresh-empty'} accessibilityRole={failure ? 'alert' : undefined} style={styles.message}>
+              {failure ?? 'Nie znaleziono innych filmów.'}
+            </Text> : null}
+            {failure ? <ActionButton testID="retry-refresh" label="Spróbuj ponownie" secondary disabled={loading} onPress={retry} /> :
+              nextPage !== null ? <ActionButton testID="continue-search" label="Szukaj dalej" secondary disabled={loading} onPress={refresh} /> : null}
           </View>
         ) : undefined}
         ListEmptyComponent={(
@@ -163,6 +170,10 @@ export default function RecommendationScreen() {
               <Text testID="recommendations-error" style={styles.message} accessibilityRole="alert">{failure}</Text>
               <ActionButton testID="retry-movies" label="Spróbuj ponownie" onPress={retry} secondary />
             </View>
+          ) : nextPage !== null ? (
+            <View style={styles.empty}>
+              <ActionButton testID="continue-search" label="Szukaj dalej" onPress={refresh} />
+            </View>
           ) : loadedCount > 0 && !noNewMovies ? (
             <View style={styles.empty}>
               <Text testID="recommendations-empty" style={styles.message}>Lista jest pusta.</Text>
@@ -171,7 +182,7 @@ export default function RecommendationScreen() {
           ) : (
             <View style={styles.empty}>
               <Text testID="recommendations-empty" style={styles.message}>
-                {noNewMovies ? 'Brak innych filmów dla tych filtrów.' : 'Brak filmów dla tych filtrów.'}
+                {noNewMovies ? 'Nie znaleziono innych filmów.' : 'Nie znaleziono filmów.'}
               </Text>
               <ActionButton testID="change-filters" label="Zmień filtry" secondary onPress={goBack} />
             </View>

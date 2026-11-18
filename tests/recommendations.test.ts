@@ -142,11 +142,11 @@ test('zwraca wiele potwierdzonych filmów w kolejności wyników, bez duplikató
     movie,
   ]);
 
-  const recommendations = await getRecommendations({ providerIds: [8], genreIds: [28, 35] });
+  const { movies: recommendations } = await getRecommendations({ providerIds: [8], genreIds: [28, 35] });
   assert.deepEqual(recommendations.map(({ id }) => id), [1, 2, 5]);
 });
 
 test('brak wyników TMDB zwraca pustą listę filmów', async (context) => {
   mockMovies(context, []);
-  assert.deepEqual(await getRecommendations({ providerIds: [8], genreIds: [] }), []);
+  assert.deepEqual(await getRecommendations({ providerIds: [8], genreIds: [] }), { movies: [], nextPage: null });
 });

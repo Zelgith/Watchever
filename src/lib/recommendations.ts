@@ -7,6 +7,12 @@ import type { WatchedMovie } from './storage.ts';
 export type { MoviePreferences } from './preferences.ts';
 
 const NEUTRAL_RATING = 2.5;
+const SEARCH_WINDOW_MS = 5_000;
+
+export type RecommendationResult = {
+  movies: MovieDetails[];
+  nextPage: number | null;
+};
 
 export function discoveryParameters(preferences: MoviePreferences): Record<string, string> {
   validatePreferences(preferences);
@@ -63,14 +69,17 @@ export async function getRecommendations(
   signal?: AbortSignal,
   history: readonly WatchedMovie[] = [],
   excludedIds: readonly number[] = [],
-): Promise<MovieDetails[]> {
+  startPage = 1,
+): Promise<RecommendationResult> {
   const parameters = discoveryParameters(preferences);
+  if (!Number.isInteger(startPage) || startPage < 1 || startPage > 500) throw new Error('Nieprawidłowa strona wyszukiwania.');
+  const deadline = Date.now() + SEARCH_WINDOW_MS;
   const skippedIds = new Set([...history.map((movie) => movie.id), ...excludedIds]);
   const affinities = genreAffinities(history);
   const seeds = history.filter((movie) => movie.rating === null || movie.rating > NEUTRAL_RATING)
     .sort((a, b) => (b.rating ?? NEUTRAL_RATING) - (a.rating ?? NEUTRAL_RATING) || b.watchedAt.localeCompare(a.watchedAt)).slice(0, 2);
   const [firstPage, relatedPages] = await Promise.all([
-    requestTmdb<MoviePage>('/discover/movie', { ...parameters, page: '1' }, signal),
+    requestTmdb<MoviePage>('/discover/movie', { ...parameters, page: String(startPage) }, signal),
     Promise.all(seeds.map(async (movie) => {
       try { return await requestTmdb<MoviePage>(`/movie/${movie.id}/recommendations`, {}, signal); }
       catch (error) {
@@ -105,10 +114,11 @@ export async function getRecommendations(
 
   const checkedIds = new Set(skippedIds);
   const movies: MovieDetails[] = [];
-  const maxPages = Math.min(5, firstPage.total_pages ?? 1);
-  for (let page = 1; page <= Math.max(1, maxPages) && movies.length < 20; page++) {
-    const response = page === 1 ? firstPage : await requestTmdb<MoviePage>('/discover/movie', { ...parameters, page: String(page) }, signal);
-    const candidates = (page === 1 ? [...response.results, ...relatedPages.flatMap((related) => related.results)] : response.results)
+  const lastPage = Math.max(startPage, Math.min(500, firstPage.total_pages ?? startPage));
+  let page = startPage;
+  for (; page <= lastPage && movies.length < 20 && (page === startPage || Date.now() < deadline); page++) {
+    const response = page === startPage ? firstPage : await requestTmdb<MoviePage>('/discover/movie', { ...parameters, page: String(page) }, signal);
+    const candidates = (page === startPage ? [...response.results, ...relatedPages.flatMap((related) => related.results)] : response.results)
       .filter((candidate) => {
         if (!Number.isSafeInteger(candidate.id) || candidate.id <= 0 || checkedIds.has(candidate.id)) return false;
         checkedIds.add(candidate.id);
@@ -126,5 +136,8 @@ export async function getRecommendations(
       movies.push(...details.filter((movie): movie is MovieDetails => movie !== null && !skippedIds.has(movie.id) && matchesPreferences(movie, preferences)));
     }
   }
-  return movies.sort((a, b) => score(b.id, (b.genres ?? []).map((genre) => genre.id)) - score(a.id, (a.genres ?? []).map((genre) => genre.id))).slice(0, 20);
+  return {
+    movies: movies.sort((a, b) => score(b.id, (b.genres ?? []).map((genre) => genre.id)) - score(a.id, (a.genres ?? []).map((genre) => genre.id))).slice(0, 20),
+    nextPage: page <= lastPage ? page : null,
+  };
 }
