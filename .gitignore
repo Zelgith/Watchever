@@ -20,9 +20,6 @@ credentials.json
 
 # Dane robocze i eksporty z urządzenia
 data/
-library/
-downloads/
-incomplete/
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
