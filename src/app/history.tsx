@@ -187,7 +187,9 @@ export default function HistoryScreen() {
             </View>
             {selected ? <ScrollView contentContainerStyle={styles.details}>
               <RatingInput value={selected.rating} onChange={(rating) => rateMovie(selected.id, rating)} disabled={busy} />
-              <ActionButton testID="remove-history-entry" label="Usuń z historii" icon="close" secondary disabled={busy} onPress={() => void remove(selected.id)} />
+              <View style={styles.dangerZone}>
+                <ActionButton testID="remove-history-entry" label="Usuń z historii" icon="close" plain disabled={busy} onPress={() => void remove(selected.id)} />
+              </View>
               {error ? <Text style={styles.text} accessibilityRole="alert">Nie udało się usunąć filmu. Spróbuj ponownie.</Text> : null}
             </ScrollView> : null}
           </SafeAreaView>
@@ -222,5 +224,6 @@ const styles = StyleSheet.create({
   sheet: { width: '100%', maxWidth: theme.contentWidth, maxHeight: '90%', alignSelf: 'center', backgroundColor: theme.colors.surface },
   sheetHeader: { paddingLeft: theme.space.xl, paddingRight: theme.space.sm, paddingVertical: theme.space.md, flexDirection: 'row', alignItems: 'flex-start', gap: theme.space.md },
   detailTitle: { flex: 1, minWidth: 0, paddingTop: theme.space.sm, fontFamily: theme.fonts.medium, fontSize: theme.text.section, lineHeight: 28, color: theme.colors.ink },
-  details: { paddingHorizontal: theme.space.xl, paddingBottom: theme.space.xl, gap: theme.space.xl },
+  details: { paddingHorizontal: theme.space.xl, paddingBottom: theme.space.lg, gap: theme.space.lg },
+  dangerZone: { borderTopWidth: 1, borderTopColor: theme.colors.rule, paddingTop: theme.space.sm },
 });
