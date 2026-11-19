@@ -165,7 +165,7 @@ export default function HomeScreen() {
                 </View>
               ) : null}
               {expanded ? <View style={styles.providerList}>{providerChoices}</View> : (
-                <ScrollView testID="provider-rail" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.providerRail}>
+                <ScrollView testID="provider-rail" horizontal showsHorizontalScrollIndicator={false} style={styles.rail} contentContainerStyle={styles.providerRail}>
                   {providerChoices}
                 </ScrollView>
               )}
@@ -177,7 +177,7 @@ export default function HomeScreen() {
               <ActionButton testID="retry-providers" label="Spróbuj ponownie" onPress={() => setLoadAttempt((current) => current + 1)} secondary />
             </>
           ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.providerRail} accessibilityRole="progressbar" accessibilityLabel="Pobieranie platform">
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.rail} contentContainerStyle={styles.providerRail} accessibilityRole="progressbar" accessibilityLabel="Pobieranie platform">
               {Array.from({ length: 6 }, (_, index) => (
                 <View key={index} style={styles.skeletonProvider}>
                   <View style={styles.skeletonLogo} />
@@ -187,7 +187,7 @@ export default function HomeScreen() {
             </ScrollView>
           )}
         </View>
-        <View style={styles.section}>
+        {genres || !genreError || !loadError ? <View style={styles.section}>
           <Text style={styles.sectionTitle} accessibilityRole="header">Gatunki</Text>
           {genres ? (
             <View style={styles.genres}>
@@ -207,7 +207,7 @@ export default function HomeScreen() {
               {[0, 1, 2, 3].map((index) => <View key={index} style={styles.skeletonGenre} />)}
             </View>
           )}
-        </View>
+        </View> : null}
         <View style={styles.section}>
           <Text style={styles.sectionTitle} accessibilityRole="header">Rok i czas</Text>
           <View style={styles.filterRow}>
@@ -242,7 +242,8 @@ const styles = StyleSheet.create({
   section: { gap: theme.space.lg },
   sectionHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: theme.space.sm },
   sectionTitle: { flexShrink: 1, fontFamily: theme.fonts.medium, fontSize: theme.text.section, lineHeight: 28, color: theme.colors.ink },
-  providerRail: { gap: theme.space.sm, paddingVertical: theme.space.xs },
+  rail: { marginHorizontal: -theme.space.xl },
+  providerRail: { gap: theme.space.sm, paddingVertical: theme.space.xs, paddingHorizontal: theme.space.xl },
   providerList: { width: '100%' },
   providerItem: { width: 88 },
   providerRow: { width: '100%' },

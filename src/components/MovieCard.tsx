@@ -103,7 +103,7 @@ export function MovieCard({ movie, providerIds, onDismiss, style }: Props) {
               <Text testID={`movie-detail-title-${movie.id}`} accessibilityRole="header" style={styles.detailTitle}>{movie.title}</Text>
               <IconButton testID={`close-movie-${movie.id}`} icon="close" label="Zamknij szczegóły" onPress={closeDetails} />
             </View>
-            <ScrollView contentContainerStyle={styles.details}>
+            <ScrollView style={styles.scroll} contentContainerStyle={styles.details}>
               <View style={styles.detailSummary}>
                 {poster ? <Image source={poster} style={styles.detailPoster} contentFit="cover" accessible={false} /> : null}
                 <View style={styles.facts}>
@@ -122,6 +122,8 @@ export function MovieCard({ movie, providerIds, onDismiss, style }: Props) {
                 </View>
               </View>
               <Text testID={`movie-overview-${movie.id}`} style={styles.text}>{movie.overview?.trim() || 'Brak opisu.'}</Text>
+            </ScrollView>
+            <View style={styles.footer}>
               {watched ? (
                 <View style={styles.watched}>
                   <View style={styles.provider}><Icon name="check" color={theme.colors.accent} /><Text style={styles.text}>Obejrzane</Text></View>
@@ -134,7 +136,7 @@ export function MovieCard({ movie, providerIds, onDismiss, style }: Props) {
                 </View>
               )}
               {saveError ? <Text style={styles.text} accessibilityRole="alert">Nie udało się zapisać filmu w historii.</Text> : null}
-            </ScrollView>
+            </View>
           </SafeAreaView>
         </View>
       </Modal>
@@ -159,12 +161,14 @@ const styles = StyleSheet.create({
   sheet: { width: '100%', maxWidth: theme.contentWidth, maxHeight: '90%', alignSelf: 'center', backgroundColor: theme.colors.surface },
   sheetHeader: { paddingLeft: theme.space.xl, paddingRight: theme.space.sm, paddingTop: theme.space.md, paddingBottom: theme.space.md, flexDirection: 'row', alignItems: 'flex-start', gap: theme.space.md },
   detailTitle: { flex: 1, minWidth: 0, paddingTop: theme.space.sm, fontFamily: theme.fonts.medium, fontSize: theme.text.section, lineHeight: 28, color: theme.colors.ink },
+  scroll: { flexShrink: 1 },
   details: { paddingHorizontal: theme.space.xl, paddingBottom: theme.space.xl, gap: theme.space.xl },
   detailSummary: { flexDirection: 'row', alignItems: 'flex-start', gap: theme.space.lg },
   detailPoster: { width: 88, aspectRatio: 2 / 3, backgroundColor: theme.colors.subtle },
   facts: { flex: 1, gap: theme.space.md },
+  footer: { paddingHorizontal: theme.space.xl, paddingTop: theme.space.lg, paddingBottom: theme.space.lg, gap: theme.space.md, borderTopWidth: 1, borderTopColor: theme.colors.rule },
   watched: { gap: theme.space.md },
-  actions: { gap: theme.space.xs },
+  actions: { gap: theme.space.sm },
   provider: { flexDirection: 'row', alignItems: 'center', gap: theme.space.sm },
   providerName: { flexShrink: 1, fontFamily: theme.fonts.body, fontSize: theme.text.caption, lineHeight: 20, color: theme.colors.secondaryInk },
   text: { fontFamily: theme.fonts.body, fontSize: theme.text.body, lineHeight: 26, color: theme.colors.secondaryInk },

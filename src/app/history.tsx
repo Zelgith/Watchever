@@ -123,8 +123,10 @@ export default function HistoryScreen() {
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.toolbar}>
-        <Text accessibilityRole="header" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} style={styles.heading}>Obejrzane</Text>
-        <Text testID="history-count" style={styles.caption} accessibilityLabel={`Obejrzane filmy: ${history.length}`}>{history.length}</Text>
+        <View style={styles.titleGroup}>
+          <Text accessibilityRole="header" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} style={styles.heading}>Obejrzane</Text>
+          <Text testID="history-count" style={styles.count} accessibilityLabel={`Obejrzane filmy: ${history.length}`}>{history.length}</Text>
+        </View>
         <IconButton testID="open-data-sources" icon="info" label="Źródła danych" onPress={() => setSourcesOpen(true)} />
         <IconButton testID="history-back" icon="back" label="Wróć" onPress={() => router.canGoBack() ? router.back() : router.replace('/')} />
       </View>
@@ -146,9 +148,9 @@ export default function HistoryScreen() {
             <Text testID="watched-search-empty" style={styles.text} accessibilityRole={searchError ? 'alert' : undefined}>{searchError ?? 'Brak filmów o tym tytule.'}</Text>
         ) : <Text testID="history-empty" style={styles.text}>Brak obejrzanych filmów.</Text>}
         ListFooterComponent={searching ? (
-          searchLoading && results.length > 0 ? <ActivityIndicator color={theme.colors.accent} accessibilityLabel="Wyszukiwanie filmów" /> :
-            searchError ? <ActionButton testID="retry-watched-search" label="Spróbuj ponownie" secondary onPress={() => searchAgain(false)} /> :
-              !searchLoading && page < totalPages ? <ActionButton testID="more-watched-search" label="Więcej wyników" secondary onPress={() => searchAgain(true)} /> : undefined
+          searchLoading && results.length > 0 ? <View style={styles.footer}><ActivityIndicator color={theme.colors.accent} accessibilityLabel="Wyszukiwanie filmów" /></View> :
+            searchError ? <View style={styles.footer}><ActionButton testID="retry-watched-search" label="Spróbuj ponownie" secondary onPress={() => searchAgain(false)} /></View> :
+              !searchLoading && page < totalPages ? <View style={styles.footer}><ActionButton testID="more-watched-search" label="Więcej wyników" secondary onPress={() => searchAgain(true)} /></View> : undefined
         ) : undefined}
         renderItem={({ item }) => {
           const entry = watchedById.get(item.id);
@@ -199,12 +201,15 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: theme.colors.paper },
   toolbar: { width: '100%', maxWidth: theme.contentWidth, alignSelf: 'center', padding: theme.space.xl, flexDirection: 'row', alignItems: 'center', gap: theme.space.md },
-  heading: { flex: 1, minWidth: 0, fontFamily: theme.fonts.display, fontSize: theme.text.wordmark, lineHeight: 52, color: theme.colors.ink, textTransform: 'uppercase' },
+  titleGroup: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: theme.space.md },
+  count: { fontFamily: theme.fonts.body, fontSize: theme.text.body, color: theme.colors.muted, fontVariant: ['tabular-nums'] },
+  heading: { minWidth: 0, flexShrink: 1, fontFamily: theme.fonts.display, fontSize: theme.text.wordmark, lineHeight: 52, color: theme.colors.ink, textTransform: 'uppercase' },
   content: { flexGrow: 1, width: '100%', maxWidth: theme.contentWidth, alignSelf: 'center', paddingHorizontal: theme.space.xl, paddingBottom: theme.space.xl },
   searchArea: { width: '100%', maxWidth: theme.contentWidth, alignSelf: 'center', paddingHorizontal: theme.space.xl, paddingBottom: theme.space.lg, gap: theme.space.md },
   searchField: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: theme.space.sm, borderWidth: 1, borderColor: theme.colors.muted, paddingLeft: theme.space.md, paddingRight: theme.space.xs },
   searchInput: { flex: 1, minWidth: 0, minHeight: 50, paddingVertical: theme.space.sm, fontFamily: theme.fonts.body, fontSize: theme.text.body, color: theme.colors.ink },
   row: { minHeight: 112, paddingVertical: theme.space.lg, flexDirection: 'row', alignItems: 'center', gap: theme.space.lg, borderBottomWidth: 1, borderBottomColor: theme.colors.rule },
+  footer: { paddingTop: theme.space.lg },
   pressed: { backgroundColor: theme.colors.surface },
   focused: { outlineColor: theme.colors.focus, outlineWidth: 2, outlineOffset: 2 },
   poster: { width: 56, aspectRatio: 2 / 3, backgroundColor: theme.colors.surface, justifyContent: 'center', alignItems: 'center' },

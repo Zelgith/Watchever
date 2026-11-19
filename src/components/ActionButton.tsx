@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.button, borderRadius: theme.radius,
   },
   compact: { minHeight: 48, paddingHorizontal: theme.space.md, paddingVertical: theme.space.sm },
-  secondary: { backgroundColor: theme.colors.surface },
+  secondary: { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.outline },
   pressed: { backgroundColor: theme.colors.buttonPressed },
   secondaryPressed: { backgroundColor: theme.colors.selection },
   focused: { outlineColor: theme.colors.focus, outlineWidth: 2, outlineOffset: 2 },

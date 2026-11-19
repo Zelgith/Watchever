@@ -8,6 +8,7 @@ export const theme = {
     secondaryInk: '#C2BDB5',
     muted: '#918B85',
     rule: '#2F2A27',
+    outline: '#4A423D',
     accent: '#EC8D38',
     focus: '#EC8D38',
     button: '#EC8D38',
