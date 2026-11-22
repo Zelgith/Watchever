@@ -17,7 +17,7 @@ import { useAppData } from '../state/AppData';
 type Props = { movie: MovieDetails; providerIds: readonly number[]; onDismiss: () => void; style?: StyleProp<ViewStyle> };
 
 export function MovieCard({ movie, providerIds, onDismiss, style }: Props) {
-  const { history, markWatched, rateMovie } = useAppData();
+  const { history, markWatched, rateMovie, removeFromHistory } = useAppData();
   const watched = history.find((entry) => entry.id === movie.id);
   const [posterFailed, setPosterFailed] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -25,6 +25,8 @@ export function MovieCard({ movie, providerIds, onDismiss, style }: Props) {
   const [hovered, setHovered] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [removeError, setRemoveError] = useState(false); 
   const pending = useRef(false);
   const providers = movie['watch/providers']?.results?.[WATCH_REGION]?.flatrate?.filter(
     (provider) => providerIds.includes(provider.provider_id),
@@ -52,6 +54,22 @@ export function MovieCard({ movie, providerIds, onDismiss, style }: Props) {
     try { await markWatched(movie); }
     catch { setSaveError(true); }
     finally { pending.current = false; setSaving(false); }
+  }
+
+  async function unwatch() {
+    if (pending.current) return;
+    pending.current = true;
+    setRemoving(true);
+    setRemoveError(false);
+
+    try {
+      await removeFromHistory(movie.id);
+    } catch {
+      setRemoveError(true);
+    } finally {
+      pending.current = false;
+      setRemoving(false);
+    }
   }
 
   return (
@@ -126,8 +144,25 @@ export function MovieCard({ movie, providerIds, onDismiss, style }: Props) {
             <View style={styles.footer}>
               {watched ? (
                 <View style={styles.watched}>
-                  <View style={styles.provider}><Icon name="check" color={theme.colors.accent} /><Text style={styles.text}>Obejrzane</Text></View>
-                  <RatingInput value={watched.rating} onChange={(rating) => rateMovie(movie.id, rating)} />
+                  <View style={styles.provider}>
+                    <Icon name="check" color={theme.colors.accent} />
+                    <Text style={styles.text}>Obejrzane</Text>
+                  </View>
+
+                  <RatingInput
+                    value={watched.rating}
+                    onChange={(rating) => rateMovie(movie.id, rating)}
+                    disabled={removing}
+                  />
+
+                  <ActionButton
+                    testID={`unwatch-movie-${movie.id}`}
+                    label="Cofnij oznaczenie jako obejrzane"
+                    icon="close"
+                    secondary
+                    disabled={removing}
+                    onPress={() => void unwatch()}
+                  />
                 </View>
               ) : (
                 <View collapsable={false} style={styles.actions}>
@@ -135,7 +170,9 @@ export function MovieCard({ movie, providerIds, onDismiss, style }: Props) {
                   <ActionButton testID={`dismiss-movie-${movie.id}`} label="Nie interesuje mnie" icon="close" secondary disabled={saving} onPress={onDismiss} />
                 </View>
               )}
-              {saveError ? <Text style={styles.text} accessibilityRole="alert">Nie udało się zapisać filmu w historii.</Text> : null}
+              {saveError ? ( <Text style={styles.text} accessibilityRole="alert"> Nie udało się zapisać filmu w historii. </Text> ) : null}
+
+              {removeError ? ( <Text style={styles.text} accessibilityRole="alert"> Nie udało się cofnąć oznaczenia filmu jako obejrzany. </Text> ) : null}
             </View>
           </SafeAreaView>
         </View>
