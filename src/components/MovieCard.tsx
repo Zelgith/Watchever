@@ -14,13 +14,13 @@ import { IconButton } from './IconButton';
 import { RatingInput } from './RatingInput';
 import { useAppData } from '../state/AppData';
 
-type Props = { movie: MovieDetails; providerIds: readonly number[]; onDismiss: () => void; style?: StyleProp<ViewStyle> };
+type Props = { movie: MovieDetails; providerIds: readonly number[]; onDismiss: () => void; style?: StyleProp<ViewStyle>; showProviders?: boolean; showDismiss?: boolean; detailsOnly?: boolean; initiallyOpen?: boolean; onClose?: () => void; };
 
-export function MovieCard({ movie, providerIds, onDismiss, style }: Props) {
+export function MovieCard({ movie, providerIds, onDismiss, style, showProviders = true, showDismiss = true, detailsOnly = false, initiallyOpen = false, onClose, }: Props) {
   const { history, markWatched, rateMovie, removeFromHistory } = useAppData();
   const watched = history.find((entry) => entry.id === movie.id);
   const [posterFailed, setPosterFailed] = useState(false);
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(initiallyOpen);
   const [focused, setFocused] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -44,6 +44,7 @@ export function MovieCard({ movie, providerIds, onDismiss, style }: Props) {
 
   function closeDetails() {
     setDetailsOpen(false);
+    onClose?.();
   }
 
   async function watch() {
@@ -74,45 +75,49 @@ export function MovieCard({ movie, providerIds, onDismiss, style }: Props) {
 
   return (
     <View style={[styles.movie, style]}>
-      <Pressable
-        testID={`open-movie-${movie.id}`}
-        accessibilityRole="button"
-        accessibilityLabel={`${movie.title}, ${year ?? 'rok nieznany'}`}
-        accessibilityHint="Otwiera szczegóły filmu"
-        onPress={() => setDetailsOpen(true)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        onHoverIn={() => setHovered(true)}
-        onHoverOut={() => setHovered(false)}
-        style={({ pressed }) => [styles.open, (pressed || hovered) && styles.pressed, focused && styles.focused]}
-      >
-        {poster ? (
-          <Image testID={`movie-poster-${movie.id}`} source={poster} style={styles.poster}
-            contentFit="cover" accessible={false} onError={() => setPosterFailed(true)} />
-        ) : (
-          <View style={[styles.poster, styles.placeholder]}>
-            <Icon name="play" size={24} color={theme.colors.muted} />
-            <Text style={styles.caption}>Brak plakatu</Text>
-          </View>
-        )}
-        <View style={styles.summary}>
-          <Text testID={`movie-title-${movie.id}`} numberOfLines={2} style={styles.title}>{movie.title}</Text>
-          <View style={styles.metadata}>
-            <Text testID={`movie-release-${movie.id}`} style={styles.caption}>{year ?? 'Rok nieznany'}</Text>
-            {movie.runtime !== null && movie.runtime > 0 ? <Text style={styles.caption}>{movie.runtime} min</Text> : null}
-          </View>
-          <View style={styles.logos}>
-            {providers.map((provider) => (
-              <View key={provider.provider_id} testID={`movie-provider-${movie.id}-${provider.provider_id}`}>
-                {provider.logo_path ? (
-                  <Image source={`https://image.tmdb.org/t/p/w92${provider.logo_path}`} style={styles.providerLogo}
-                    accessibilityLabel={provider.provider_name} contentFit="contain" />
-                ) : <Text style={styles.caption}>{provider.provider_name}</Text>}
+      {!detailsOnly ? (
+        <Pressable
+          testID={`open-movie-${movie.id}`}
+          accessibilityRole="button"
+          accessibilityLabel={`${movie.title}, ${year ?? 'rok nieznany'}`}
+          accessibilityHint="Otwiera szczegóły filmu"
+          onPress={() => setDetailsOpen(true)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          onHoverIn={() => setHovered(true)}
+          onHoverOut={() => setHovered(false)}
+          style={({ pressed }) => [styles.open, (pressed || hovered) && styles.pressed, focused && styles.focused]}
+        >
+          {poster ? (
+            <Image testID={`movie-poster-${movie.id}`} source={poster} style={styles.poster}
+              contentFit="cover" accessible={false} onError={() => setPosterFailed(true)} />
+          ) : (
+            <View style={[styles.poster, styles.placeholder]}>
+              <Icon name="play" size={24} color={theme.colors.muted} />
+              <Text style={styles.caption}>Brak plakatu</Text>
+            </View>
+          )}
+          <View style={styles.summary}>
+            <Text testID={`movie-title-${movie.id}`} numberOfLines={2} style={styles.title}>{movie.title}</Text>
+            <View style={styles.metadata}>
+              <Text testID={`movie-release-${movie.id}`} style={styles.caption}>{year ?? 'Rok nieznany'}</Text>
+              {movie.runtime !== null && movie.runtime > 0 ? <Text style={styles.caption}>{movie.runtime} min</Text> : null}
+            </View>
+            {showProviders ? (
+              <View style={styles.logos}>
+                {providers.map((provider) => (
+                  <View key={provider.provider_id} testID={`movie-provider-${movie.id}-${provider.provider_id}`}>
+                    {provider.logo_path ? (
+                      <Image source={`https://image.tmdb.org/t/p/w92${provider.logo_path}`} style={styles.providerLogo}
+                      accessibilityLabel={provider.provider_name} contentFit="contain" />
+                    ) : <Text style={styles.caption}>{provider.provider_name}</Text>}
+                  </View>
+                ))}
               </View>
-            ))}
+            ) : null}
           </View>
-        </View>
-      </Pressable>
+        </Pressable>
+      ) : null}
       <Modal visible={detailsOpen} transparent animationType="none" onRequestClose={closeDetails}>
         <View style={styles.backdrop}>
           <Pressable style={StyleSheet.absoluteFill} accessible={false} focusable={false} onPress={closeDetails} />
@@ -131,12 +136,12 @@ export function MovieCard({ movie, providerIds, onDismiss, style }: Props) {
                   </View>
                   <Text style={styles.caption}>{genres.length > 0 ? genres.map((genre) => genre.name).join(', ') : 'Gatunek nieznany'}</Text>
                   <Text testID={`movie-rating-${movie.id}`} style={styles.caption}>{rating ? `TMDB ${rating}/10` : 'Brak ocen TMDB'}</Text>
-                  {providers.map((provider) => (
+                  {showProviders ? providers.map((provider) => (
                     <View key={provider.provider_id} style={styles.provider}>
                       {provider.logo_path ? <Image source={`https://image.tmdb.org/t/p/w92${provider.logo_path}`} style={styles.providerLogo} accessible={false} /> : null}
                       <Text style={styles.providerName}>{provider.provider_name}</Text>
                     </View>
-                  ))}
+                  )) : null}
                 </View>
               </View>
               <Text testID={`movie-overview-${movie.id}`} style={styles.text}>{movie.overview?.trim() || 'Brak opisu.'}</Text>
@@ -167,7 +172,9 @@ export function MovieCard({ movie, providerIds, onDismiss, style }: Props) {
               ) : (
                 <View collapsable={false} style={styles.actions}>
                   <ActionButton testID={`watch-movie-${movie.id}`} label="Obejrzane" icon="check" disabled={saving} onPress={() => void watch()} />
-                  <ActionButton testID={`dismiss-movie-${movie.id}`} label="Nie interesuje mnie" icon="close" secondary disabled={saving} onPress={onDismiss} />
+                  {showDismiss ? (
+                    <ActionButton testID={`dismiss-movie-${movie.id}`} label="Nie interesuje mnie" icon="close" secondary disabled={saving} onPress={onDismiss} />
+                  ) : null}
                 </View>
               )}
               {saveError ? ( <Text style={styles.text} accessibilityRole="alert"> Nie udało się zapisać filmu w historii. </Text> ) : null}

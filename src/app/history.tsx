@@ -1,27 +1,25 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Keyboard, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Keyboard, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ActionButton } from '../components/ActionButton';
 import { DataSources } from '../components/DataSources';
 import { Icon } from '../components/Icon';
 import { IconButton } from '../components/IconButton';
-import { RatingInput } from '../components/RatingInput';
 import { releaseYear } from '../lib/preferences';
 import { getMovieDetails, searchMovies, tmdbErrorMessage } from '../lib/tmdb';
-import type { MovieSummary } from '../lib/tmdb';
+import type { MovieSummary, MovieDetails } from '../lib/tmdb';
 import { useAppData } from '../state/AppData';
 import { theme } from '../theme';
+import { MovieCard } from '../components/MovieCard';
 
 export default function HistoryScreen() {
   const router = useRouter();
-  const { history, markWatched, rateMovie, removeFromHistory } = useAppData();
+  const { history, markWatched } = useAppData();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [sourcesOpen, setSourcesOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(false);
   const [focusedId, setFocusedId] = useState<number | null>(null);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<MovieSummary[]>([]);
@@ -33,13 +31,15 @@ export default function HistoryScreen() {
   const [attempt, setAttempt] = useState(0);
   const [addingId, setAddingId] = useState<number | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
+  const [selectedDetails, setSelectedDetails] = useState<MovieDetails | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsError, setDetailsError] = useState<string | null>(null);  
   const addRequest = useRef<AbortController | null>(null);
   const searchRequest = useRef<AbortController | null>(null);
   const searchPending = useRef(false);
-  const removing = useRef(false);
+  const detailsRequest = useRef<AbortController | null>(null);
   const searching = query.trim().length > 0;
   const watchedById = new Map(history.map((movie) => [movie.id, movie]));
-  const selected = history.find((movie) => movie.id === selectedId);
 
   useEffect(() => {
     if (!query.trim()) return;
@@ -65,7 +65,7 @@ export default function HistoryScreen() {
     return () => { clearTimeout(timeout); controller.abort(); };
   }, [query, page, attempt]);
 
-  useEffect(() => () => addRequest.current?.abort(), []);
+  useEffect(() => () => { addRequest.current?.abort(); searchRequest.current?.abort(); detailsRequest.current?.abort(); }, []);
 
   function changeQuery(value: string) {
     searchRequest.current?.abort();
@@ -101,7 +101,6 @@ export default function HistoryScreen() {
       if (controller.signal.aborted) return;
       changeQuery('');
       setSelectedId(id);
-      setError(false);
     } catch (error) {
       if (!controller.signal.aborted) setAddError(tmdbErrorMessage(error, 'Nie udało się dodać filmu. Spróbuj ponownie.'));
     } finally {
@@ -110,14 +109,34 @@ export default function HistoryScreen() {
     }
   }
 
-  async function remove(id: number) {
-    if (removing.current) return;
-    removing.current = true;
-    setBusy(true);
-    setError(false);
-    try { await removeFromHistory(id); setSelectedId(null); }
-    catch { setError(true); }
-    finally { removing.current = false; setBusy(false); }
+  async function openMovieDetails(id: number) {
+    detailsRequest.current?.abort();
+
+    const controller = new AbortController();
+    detailsRequest.current = controller;
+
+    Keyboard.dismiss();
+    setSelectedId(id);
+    setSelectedDetails(null);
+    setDetailsError(null);
+    setDetailsLoading(true);
+
+    try {
+      const details = await getMovieDetails(id, controller.signal);
+
+      if (controller.signal.aborted) return;
+
+      setSelectedDetails(details);
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        setDetailsError(tmdbErrorMessage(error, 'Nie udało się pobrać szczegółów filmu.'));
+      }
+    } finally {
+      if (detailsRequest.current === controller) {
+        detailsRequest.current = null;
+        setDetailsLoading(false);
+      }
+    }
   }
 
   return (
@@ -159,7 +178,7 @@ export default function HistoryScreen() {
             accessibilityLabel={`${item.title}, ${releaseYear(item.release_date) ?? 'rok nieznany'}${entry ? ', obejrzane' : ''}`}
             accessibilityHint={entry ? 'Zmień ocenę lub usuń film z historii' : 'Dodaj do obejrzanych'}
             accessibilityState={{ disabled: addingId !== null }} disabled={addingId !== null}
-            onPress={() => { if (entry) { Keyboard.dismiss(); setSelectedId(item.id); setError(false); } else void add(item.id); }}
+            onPress={() => { if (entry) void openMovieDetails(item.id); else void add(item.id); }}
             onFocus={() => setFocusedId(item.id)} onBlur={() => setFocusedId(null)}
             style={({ pressed }) => [styles.row, pressed && styles.pressed, focusedId === item.id && styles.focused]}>
             <View style={styles.poster}>
@@ -177,24 +196,38 @@ export default function HistoryScreen() {
           </Pressable>
         ); }}
       />
-      <Modal visible={selected !== undefined} transparent animationType="none" onRequestClose={() => setSelectedId(null)}>
-        <View style={styles.backdrop}>
-          <Pressable style={StyleSheet.absoluteFill} accessible={false} focusable={false} onPress={() => setSelectedId(null)} />
-          <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.sheet} accessibilityViewIsModal>
-            <View style={styles.sheetHeader}>
-              <Text style={styles.detailTitle}>{selected?.title}</Text>
-              <IconButton testID="close-history-entry" icon="close" label="Zamknij" onPress={() => setSelectedId(null)} />
+      {selectedId !== null && !selectedDetails ? (
+        <Modal visible transparent animationType="none" onRequestClose={() => { detailsRequest.current?.abort(); setDetailsLoading(false); setSelectedId(null); setSelectedDetails(null); }} >
+          {detailsLoading ? (
+            <View style={styles.backdrop}>
+              <ActivityIndicator color={theme.colors.accent} accessibilityLabel="Wczytywanie szczegółów filmu" />
             </View>
-            {selected ? <ScrollView contentContainerStyle={styles.details}>
-              <RatingInput value={selected.rating} onChange={(rating) => rateMovie(selected.id, rating)} disabled={busy} />
-              <View style={styles.dangerZone}>
-                <ActionButton testID="remove-history-entry" label="Usuń z historii" icon="close" plain disabled={busy} onPress={() => void remove(selected.id)} />
+          ) : detailsError ? (
+            <View style={styles.backdrop}>
+              <View style={styles.sheet}>
+                <Text style={styles.text} accessibilityRole="alert">{detailsError}</Text>
+                <ActionButton label="Zamknij" onPress={() => { detailsRequest.current?.abort(); setDetailsLoading(false); setSelectedId(null); setSelectedDetails(null); }} />
               </View>
-              {error ? <Text style={styles.text} accessibilityRole="alert">Nie udało się usunąć filmu. Spróbuj ponownie.</Text> : null}
-            </ScrollView> : null}
-          </SafeAreaView>
-        </View>
-      </Modal>
+            </View>
+          ) : null}
+        </Modal>
+      ) : null}
+      {selectedDetails ? (
+        <MovieCard
+          key={selectedDetails.id}
+          movie={selectedDetails}
+          providerIds={[]}
+          onDismiss={() => {}}
+          showProviders={false}
+          showDismiss={false}
+          detailsOnly
+          initiallyOpen
+          onClose={() => {
+            setSelectedId(null);
+            setSelectedDetails(null);
+          }}
+        />
+      ) : null}
       <DataSources visible={sourcesOpen} onClose={() => setSourcesOpen(false)} />
     </SafeAreaView>
   );
