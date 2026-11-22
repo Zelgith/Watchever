@@ -22,8 +22,16 @@ export function validatePreferences(preferences: MoviePreferences): void {
   if (preferences.yearFrom !== undefined && preferences.yearTo !== undefined && preferences.yearFrom > preferences.yearTo) {
     throw new Error('Rok „od” nie może być późniejszy niż rok „do”.');
   }
-  if (preferences.maxRuntime !== undefined && (!Number.isSafeInteger(preferences.maxRuntime) || preferences.maxRuntime <= 0)) {
-    throw new Error('Czas musi być dodatnią liczbą minut.');
+  const runtime = preferences.maxRuntime;
+
+  if (runtime !== undefined) {
+    if (!Number.isSafeInteger(runtime)) {
+      throw new Error('Czas trwania musi być liczbą całkowitą bez znaków specjalnych.');
+    }
+
+    if (runtime <= 0) {
+      throw new Error('Maksymalny czas trwania musi być większy od 0 minut.');
+    }
   }
 }
 
@@ -40,7 +48,7 @@ export function preferencesFromFields(
     providerIds, genreIds,
     yearFrom: number(fields.yearFrom, 'Podaj czterocyfrowy rok.'),
     yearTo: number(fields.yearTo, 'Podaj czterocyfrowy rok.'),
-    maxRuntime: number(fields.maxRuntime, 'Czas musi być dodatnią liczbą minut.'),
+    maxRuntime: number(fields.maxRuntime, 'Wpisz czas trwania w minutach, używając wyłącznie cyfr.'),
   };
   validatePreferences(preferences);
   return preferences;
