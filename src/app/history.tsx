@@ -1,24 +1,31 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Keyboard, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ActionButton } from '../components/ActionButton';
 import { DataSources } from '../components/DataSources';
 import { Icon } from '../components/Icon';
 import { IconButton } from '../components/IconButton';
+import { MovieCard } from '../components/MovieCard';
 import { releaseYear } from '../lib/preferences';
+import type { WatchedMovie } from '../lib/storage';
 import { getMovieDetails, searchMovies, tmdbErrorMessage } from '../lib/tmdb';
-import type { MovieSummary, MovieDetails } from '../lib/tmdb';
+import type { MovieDetails, MovieSummary } from '../lib/tmdb';
 import { useAppData } from '../state/AppData';
 import { theme } from '../theme';
-import { MovieCard } from '../components/MovieCard';
+
+function savedDetails(entry: WatchedMovie): MovieDetails {
+  return {
+    id: entry.id, title: entry.title, poster_path: entry.poster_path, release_date: entry.release_date,
+    genres: entry.genres, overview: null, runtime: null, 'watch/providers': { results: {} },
+  };
+}
 
 export default function HistoryScreen() {
   const router = useRouter();
   const { history, markWatched } = useAppData();
-  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [focusedId, setFocusedId] = useState<number | null>(null);
   const [query, setQuery] = useState('');
@@ -31,9 +38,9 @@ export default function HistoryScreen() {
   const [attempt, setAttempt] = useState(0);
   const [addingId, setAddingId] = useState<number | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
-  const [selectedDetails, setSelectedDetails] = useState<MovieDetails | null>(null);
+  const [selected, setSelected] = useState<MovieDetails | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
-  const [detailsError, setDetailsError] = useState<string | null>(null);  
+  const [detailsError, setDetailsError] = useState<string | null>(null);
   const addRequest = useRef<AbortController | null>(null);
   const searchRequest = useRef<AbortController | null>(null);
   const searchPending = useRef(false);
@@ -100,7 +107,8 @@ export default function HistoryScreen() {
       await markWatched(movie);
       if (controller.signal.aborted) return;
       changeQuery('');
-      setSelectedId(id);
+      setDetailsError(null);
+      setSelected(movie);
     } catch (error) {
       if (!controller.signal.aborted) setAddError(tmdbErrorMessage(error, 'Nie udało się dodać filmu. Spróbuj ponownie.'));
     } finally {
@@ -109,34 +117,33 @@ export default function HistoryScreen() {
     }
   }
 
-  async function openMovieDetails(id: number) {
+  async function openMovieDetails(entry: WatchedMovie) {
     detailsRequest.current?.abort();
-
     const controller = new AbortController();
     detailsRequest.current = controller;
-
     Keyboard.dismiss();
-    setSelectedId(id);
-    setSelectedDetails(null);
+    setSelected(savedDetails(entry));
     setDetailsError(null);
     setDetailsLoading(true);
-
     try {
-      const details = await getMovieDetails(id, controller.signal);
-
-      if (controller.signal.aborted) return;
-
-      setSelectedDetails(details);
+      const details = await getMovieDetails(entry.id, controller.signal);
+      if (!controller.signal.aborted) setSelected(details);
     } catch (error) {
-      if (!controller.signal.aborted) {
-        setDetailsError(tmdbErrorMessage(error, 'Nie udało się pobrać szczegółów filmu.'));
-      }
+      if (!controller.signal.aborted) setDetailsError(tmdbErrorMessage(error, 'Nie udało się pobrać opisu filmu.'));
     } finally {
       if (detailsRequest.current === controller) {
         detailsRequest.current = null;
         setDetailsLoading(false);
       }
     }
+  }
+
+  function closeMovieDetails() {
+    detailsRequest.current?.abort();
+    detailsRequest.current = null;
+    setDetailsLoading(false);
+    setDetailsError(null);
+    setSelected(null);
   }
 
   return (
@@ -178,7 +185,7 @@ export default function HistoryScreen() {
             accessibilityLabel={`${item.title}, ${releaseYear(item.release_date) ?? 'rok nieznany'}${entry ? ', obejrzane' : ''}`}
             accessibilityHint={entry ? 'Zmień ocenę lub usuń film z historii' : 'Dodaj do obejrzanych'}
             accessibilityState={{ disabled: addingId !== null }} disabled={addingId !== null}
-            onPress={() => { if (entry) void openMovieDetails(item.id); else void add(item.id); }}
+            onPress={() => { if (entry) void openMovieDetails(entry); else void add(item.id); }}
             onFocus={() => setFocusedId(item.id)} onBlur={() => setFocusedId(null)}
             style={({ pressed }) => [styles.row, pressed && styles.pressed, focusedId === item.id && styles.focused]}>
             <View style={styles.poster}>
@@ -196,36 +203,18 @@ export default function HistoryScreen() {
           </Pressable>
         ); }}
       />
-      {selectedId !== null && !selectedDetails ? (
-        <Modal visible transparent animationType="none" onRequestClose={() => { detailsRequest.current?.abort(); setDetailsLoading(false); setSelectedId(null); setSelectedDetails(null); }} >
-          {detailsLoading ? (
-            <View style={styles.backdrop}>
-              <ActivityIndicator color={theme.colors.accent} accessibilityLabel="Wczytywanie szczegółów filmu" />
-            </View>
-          ) : detailsError ? (
-            <View style={styles.backdrop}>
-              <View style={styles.sheet}>
-                <Text style={styles.text} accessibilityRole="alert">{detailsError}</Text>
-                <ActionButton label="Zamknij" onPress={() => { detailsRequest.current?.abort(); setDetailsLoading(false); setSelectedId(null); setSelectedDetails(null); }} />
-              </View>
-            </View>
-          ) : null}
-        </Modal>
-      ) : null}
-      {selectedDetails ? (
+      {selected ? (
         <MovieCard
-          key={selectedDetails.id}
-          movie={selectedDetails}
+          key={selected.id}
+          movie={selected}
           providerIds={[]}
           onDismiss={() => {}}
           showProviders={false}
           showDismiss={false}
           detailsOnly
           initiallyOpen
-          onClose={() => {
-            setSelectedId(null);
-            setSelectedDetails(null);
-          }}
+          notice={detailsLoading ? 'Wczytywanie opisu…' : detailsError ?? undefined}
+          onClose={closeMovieDetails}
         />
       ) : null}
       <DataSources visible={sourcesOpen} onClose={() => setSourcesOpen(false)} />
@@ -253,10 +242,4 @@ const styles = StyleSheet.create({
   caption: { fontFamily: theme.fonts.body, fontSize: theme.text.caption, lineHeight: 20, color: theme.colors.muted },
   score: { alignItems: 'center', gap: theme.space.xs },
   text: { fontFamily: theme.fonts.body, fontSize: theme.text.body, lineHeight: 24, color: theme.colors.secondaryInk },
-  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: theme.colors.overlay },
-  sheet: { width: '100%', maxWidth: theme.contentWidth, maxHeight: '90%', alignSelf: 'center', backgroundColor: theme.colors.surface },
-  sheetHeader: { paddingLeft: theme.space.xl, paddingRight: theme.space.sm, paddingVertical: theme.space.md, flexDirection: 'row', alignItems: 'flex-start', gap: theme.space.md },
-  detailTitle: { flex: 1, minWidth: 0, paddingTop: theme.space.sm, fontFamily: theme.fonts.medium, fontSize: theme.text.section, lineHeight: 28, color: theme.colors.ink },
-  details: { paddingHorizontal: theme.space.xl, paddingBottom: theme.space.lg, gap: theme.space.lg },
-  dangerZone: { borderTopWidth: 1, borderTopColor: theme.colors.rule, paddingTop: theme.space.sm },
 });

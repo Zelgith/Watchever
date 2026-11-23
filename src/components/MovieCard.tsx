@@ -14,9 +14,9 @@ import { IconButton } from './IconButton';
 import { RatingInput } from './RatingInput';
 import { useAppData } from '../state/AppData';
 
-type Props = { movie: MovieDetails; providerIds: readonly number[]; onDismiss: () => void; style?: StyleProp<ViewStyle>; showProviders?: boolean; showDismiss?: boolean; detailsOnly?: boolean; initiallyOpen?: boolean; onClose?: () => void; };
+type Props = { movie: MovieDetails; providerIds: readonly number[]; onDismiss: () => void; style?: StyleProp<ViewStyle>; showProviders?: boolean; showDismiss?: boolean; detailsOnly?: boolean; initiallyOpen?: boolean; notice?: string; onClose?: () => void };
 
-export function MovieCard({ movie, providerIds, onDismiss, style, showProviders = true, showDismiss = true, detailsOnly = false, initiallyOpen = false, onClose, }: Props) {
+export function MovieCard({ movie, providerIds, onDismiss, style, showProviders = true, showDismiss = true, detailsOnly = false, initiallyOpen = false, notice, onClose }: Props) {
   const { history, markWatched, rateMovie, removeFromHistory } = useAppData();
   const watched = history.find((entry) => entry.id === movie.id);
   const [posterFailed, setPosterFailed] = useState(false);
@@ -26,7 +26,7 @@ export function MovieCard({ movie, providerIds, onDismiss, style, showProviders 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const [removing, setRemoving] = useState(false);
-  const [removeError, setRemoveError] = useState(false); 
+  const [removeError, setRemoveError] = useState(false);
   const pending = useRef(false);
   const providers = movie['watch/providers']?.results?.[WATCH_REGION]?.flatrate?.filter(
     (provider) => providerIds.includes(provider.provider_id),
@@ -65,6 +65,7 @@ export function MovieCard({ movie, providerIds, onDismiss, style, showProviders 
 
     try {
       await removeFromHistory(movie.id);
+      if (detailsOnly) closeDetails();
     } catch {
       setRemoveError(true);
     } finally {
@@ -132,10 +133,10 @@ export function MovieCard({ movie, providerIds, onDismiss, style, showProviders 
                 <View style={styles.facts}>
                   <View style={styles.metadata}>
                     <Text style={styles.text}>{year ?? 'Rok nieznany'}</Text>
-                    <Text testID={`movie-runtime-${movie.id}`} style={styles.text}>{movie.runtime !== null && movie.runtime > 0 ? `${movie.runtime} min` : 'Czas nieznany'}</Text>
+                    {notice === undefined ? <Text testID={`movie-runtime-${movie.id}`} style={styles.text}>{movie.runtime !== null && movie.runtime > 0 ? `${movie.runtime} min` : 'Czas nieznany'}</Text> : null}
                   </View>
                   <Text style={styles.caption}>{genres.length > 0 ? genres.map((genre) => genre.name).join(', ') : 'Gatunek nieznany'}</Text>
-                  <Text testID={`movie-rating-${movie.id}`} style={styles.caption}>{rating ? `TMDB ${rating}/10` : 'Brak ocen TMDB'}</Text>
+                  {notice === undefined ? <Text testID={`movie-rating-${movie.id}`} style={styles.caption}>{rating ? `TMDB ${rating}/10` : 'Brak ocen TMDB'}</Text> : null}
                   {showProviders ? providers.map((provider) => (
                     <View key={provider.provider_id} style={styles.provider}>
                       {provider.logo_path ? <Image source={`https://image.tmdb.org/t/p/w92${provider.logo_path}`} style={styles.providerLogo} accessible={false} /> : null}
@@ -144,7 +145,8 @@ export function MovieCard({ movie, providerIds, onDismiss, style, showProviders 
                   )) : null}
                 </View>
               </View>
-              <Text testID={`movie-overview-${movie.id}`} style={styles.text}>{movie.overview?.trim() || 'Brak opisu.'}</Text>
+              {notice === undefined ? <Text testID={`movie-overview-${movie.id}`} style={styles.text}>{movie.overview?.trim() || 'Brak opisu.'}</Text> :
+                <Text testID={`movie-notice-${movie.id}`} style={styles.caption}>{notice}</Text>}
             </ScrollView>
             <View style={styles.footer}>
               {watched ? (
@@ -153,13 +155,11 @@ export function MovieCard({ movie, providerIds, onDismiss, style, showProviders 
                     <Icon name="check" color={theme.colors.accent} />
                     <Text style={styles.text}>Obejrzane</Text>
                   </View>
-
                   <RatingInput
                     value={watched.rating}
                     onChange={(rating) => rateMovie(movie.id, rating)}
                     disabled={removing}
                   />
-
                   <ActionButton
                     testID={`unwatch-movie-${movie.id}`}
                     label="Cofnij oznaczenie jako obejrzane"
@@ -177,9 +177,8 @@ export function MovieCard({ movie, providerIds, onDismiss, style, showProviders 
                   ) : null}
                 </View>
               )}
-              {saveError ? ( <Text style={styles.text} accessibilityRole="alert"> Nie udało się zapisać filmu w historii. </Text> ) : null}
-
-              {removeError ? ( <Text style={styles.text} accessibilityRole="alert"> Nie udało się cofnąć oznaczenia filmu jako obejrzany. </Text> ) : null}
+              {saveError ? <Text style={styles.text} accessibilityRole="alert">Nie udało się zapisać filmu w historii.</Text> : null}
+              {removeError ? <Text style={styles.text} accessibilityRole="alert">Nie udało się cofnąć oznaczenia filmu jako obejrzanego.</Text> : null}
             </View>
           </SafeAreaView>
         </View>
