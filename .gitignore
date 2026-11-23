@@ -30,6 +30,8 @@ data/
 # Logi, pliki edytorów i systemu
 *.log
 *.kate-swp
+.idea/
+.vscode/
 .DS_Store
 Thumbs.db
 
